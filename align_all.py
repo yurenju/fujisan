@@ -1,4 +1,4 @@
-"""Run SIFT-based alignment on all photos against a reference.
+"""SIFT + ORB fallback alignment with CLAHE preprocessing.
 Outputs alignments.json and a failure report."""
 from pathlib import Path
 import cv2
@@ -13,35 +13,59 @@ OUT_DIR.mkdir(exist_ok=True)
 
 REF_NAME = "PXL_20250905_074912986.RAW-02.ORIGINAL.jpg"
 
-# Sanity bounds — outside these we treat as failure
-MIN_SCALE, MAX_SCALE = 0.25, 4.0
-MAX_ROTATION_DEG = 15.0
-MIN_INLIERS = 8
-LOWE_RATIO = 0.75
+# Sanity bounds — outside these we treat as failure.
+# We trust the transform itself more than the inlier count: a plausible scale
+# with a tiny rotation is a strong signal RANSAC locked onto something real,
+# even with few inliers (e.g. when the photo overlaps the reference only
+# partially due to different framing/zoom).
+MIN_SCALE, MAX_SCALE = 0.3, 5.0
+MAX_ROTATION_DEG = 10.0
+MIN_INLIERS = 3
+LOWE_RATIO = 0.8
+
+
+# CLAHE pulls detail out of dark/silhouetted regions (e.g. sunset buildings),
+# giving SIFT/ORB more keypoints in the parts of the photo we actually want
+# to match (the buildings, not the smooth sky gradient).
+clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+
+
+def preprocess(bgr):
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    return clahe.apply(gray)
+
 
 ref = cv2.imread(str(SRC / REF_NAME))
 H, W = ref.shape[:2]
 print(f"Reference: {REF_NAME}  size={W}x{H}")
 
+ref_proc = preprocess(ref)
+
 sift = cv2.SIFT_create(nfeatures=4000)
-ref_gray = cv2.cvtColor(ref, cv2.COLOR_BGR2GRAY)
-kp_ref, des_ref = sift.detectAndCompute(ref_gray, None)
-print(f"Reference SIFT keypoints: {len(kp_ref)}")
+orb = cv2.ORB_create(nfeatures=4000)
 
-# FLANN matcher for SIFT (float descriptors)
-index_params = dict(algorithm=1, trees=5)  # KDTree
-search_params = dict(checks=64)
-flann = cv2.FlannBasedMatcher(index_params, search_params)
+# Mask out the top half of the reference: clouds and sky generate many SIFT
+# keypoints that drift between photos, drowning the real landmarks (buildings,
+# pylons, horizon) in noise. Restricting reference keypoints to the bottom
+# half forces matching against stable structure.
+ref_mask = np.zeros((H, W), dtype=np.uint8)
+ref_mask[H // 2:, :] = 255
+
+kp_ref_sift, des_ref_sift = sift.detectAndCompute(ref_proc, ref_mask)
+kp_ref_orb, des_ref_orb = orb.detectAndCompute(ref_proc, ref_mask)
+print(f"Reference keypoints: SIFT={len(kp_ref_sift)}  ORB={len(kp_ref_orb)}")
+
+# FLANN for SIFT (float), brute force Hamming for ORB (binary)
+flann = cv2.FlannBasedMatcher(dict(algorithm=1, trees=5), dict(checks=64))
+bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 
-def align_one(img_path):
-    img = cv2.imread(str(img_path))
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    kp, des = sift.detectAndCompute(gray, None)
+def estimate_transform(kp, des, kp_ref, des_ref, matcher, knn=True):
+    """Returns dict with status/reason and transform fields, or None for hard fail."""
     if des is None or len(kp) < 20:
-        return {"status": "fail", "reason": "too_few_keypoints", "keypoints": len(kp)}
+        return {"status": "fail", "reason": "too_few_keypoints", "keypoints": len(kp) if kp else 0}
 
-    raw = flann.knnMatch(des, des_ref, k=2)
+    raw = matcher.knnMatch(des, des_ref, k=2)
     good = []
     for pair in raw:
         if len(pair) < 2:
@@ -50,7 +74,7 @@ def align_one(img_path):
         if m.distance < LOWE_RATIO * n.distance:
             good.append(m)
 
-    if len(good) < MIN_INLIERS:
+    if len(good) < 4:
         return {"status": "fail", "reason": "too_few_matches", "matches": len(good)}
 
     src_pts = np.float32([kp[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -73,17 +97,49 @@ def align_one(img_path):
         "scale": scale, "rotation_deg": rot_deg,
         "tx": float(tx), "ty": float(ty),
         "matrix": M.tolist(),
-        "src_w": img.shape[1], "src_h": img.shape[0],
     }
 
     if n_in < MIN_INLIERS:
         return {**info, "status": "fail", "reason": "too_few_inliers"}
-    if not (MIN_SCALE <= scale <= MAX_SCALE):
+
+    # Two-tier sanity bounds: with many inliers we trust the transform even
+    # at extremes (e.g. heavy zoom). With few inliers, RANSAC can lock onto
+    # a degenerate fit, so require the transform to match the typical pattern
+    # (most photos sit at scale 0.5–2.5, rot near zero — handheld tilt is small).
+    if n_in >= 8:
+        s_min, s_max, r_max = MIN_SCALE, MAX_SCALE, MAX_ROTATION_DEG
+    else:
+        s_min, s_max, r_max = 0.5, 2.5, 3.0
+
+    if not (s_min <= scale <= s_max):
         return {**info, "status": "fail", "reason": "scale_out_of_range"}
-    if abs(rot_deg) > MAX_ROTATION_DEG:
+    if abs(rot_deg) > r_max:
         return {**info, "status": "fail", "reason": "rotation_out_of_range"}
 
     return {**info, "status": "ok"}
+
+
+def align_one(img_path):
+    img = cv2.imread(str(img_path))
+    proc = preprocess(img)
+
+    kp_s, des_s = sift.detectAndCompute(proc, None)
+    sift_res = estimate_transform(kp_s, des_s, kp_ref_sift, des_ref_sift, flann)
+
+    if sift_res["status"] == "ok":
+        return {**sift_res, "detector": "sift", "src_w": img.shape[1], "src_h": img.shape[0]}
+
+    # Fallback: ORB sometimes succeeds where SIFT fails on low-contrast/silhouette
+    kp_o, des_o = orb.detectAndCompute(proc, None)
+    orb_res = estimate_transform(kp_o, des_o, kp_ref_orb, des_ref_orb, bf_orb)
+
+    if orb_res["status"] == "ok":
+        return {**orb_res, "detector": "orb", "src_w": img.shape[1], "src_h": img.shape[0]}
+
+    # Both failed — return whichever has more diagnostic info, prefer SIFT
+    chosen = sift_res if "matrix" in sift_res else orb_res
+    return {**chosen, "detector": "sift+orb_failed",
+            "src_w": img.shape[1], "src_h": img.shape[0]}
 
 
 files = sorted(SRC.glob("*.jpg"))
@@ -96,7 +152,7 @@ for i, f in enumerate(files, 1):
     tag = "OK  " if r["status"] == "ok" else "FAIL"
     extra = ""
     if "scale" in r:
-        extra = f"  scale={r['scale']:.3f}  rot={r['rotation_deg']:+.2f}  in={r.get('inliers','-')}"
+        extra = f"  scale={r['scale']:.3f}  rot={r['rotation_deg']:+.2f}  in={r.get('inliers','-')}  via={r.get('detector','')}"
     reason = "" if r["status"] == "ok" else f"  [{r['reason']}]"
     print(f"[{i:3d}/{len(files)}] {tag} {f.name}{extra}{reason}")
 
@@ -105,7 +161,11 @@ elapsed = time.time() - t0
 ok_count = sum(1 for r in results.values() if r["status"] == "ok")
 fail_count = len(results) - ok_count
 
-# Group failures by reason
+via_count = {}
+for r in results.values():
+    if r["status"] == "ok":
+        via_count[r.get("detector", "?")] = via_count.get(r.get("detector", "?"), 0) + 1
+
 fail_reasons = {}
 for name, r in results.items():
     if r["status"] != "ok":
@@ -117,10 +177,12 @@ summary = {
     "bounds": {
         "min_scale": MIN_SCALE, "max_scale": MAX_SCALE,
         "max_rotation_deg": MAX_ROTATION_DEG, "min_inliers": MIN_INLIERS,
+        "lowe_ratio": LOWE_RATIO,
     },
     "stats": {
         "total": len(files), "ok": ok_count, "fail": fail_count,
         "elapsed_sec": round(elapsed, 1),
+        "ok_by_detector": via_count,
     },
     "fail_by_reason": {k: len(v) for k, v in fail_reasons.items()},
     "items": results,
@@ -131,9 +193,8 @@ with open(OUT_DIR / "alignments.json", "w") as f:
 
 print(f"\n=== Summary ===")
 print(f"Total: {len(files)}  OK: {ok_count}  Fail: {fail_count}  ({elapsed:.1f}s)")
+print(f"OK by detector: {via_count}")
 print(f"Failure breakdown:")
 for reason, names in fail_reasons.items():
     print(f"  {reason}: {len(names)}")
-    for n in names:
-        print(f"    - {n}")
 print(f"\nWrote: {OUT_DIR / 'alignments.json'}")
