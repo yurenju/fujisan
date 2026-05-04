@@ -4,7 +4,8 @@ images-resized/
 
 # Generated outputs
 aligned-test/
-aligned-all/
+aligned-all/*
+!aligned-all/overrides.json
 viewer.html
 
 # Python
