@@ -1,14 +1,14 @@
 # Photo data — too large for git, kept locally
-images/
-images-resized/
+alignment/images/
+alignment/images-resized/
 
 # Generated outputs
-aligned-test/
-aligned-all/*
-!aligned-all/overrides.json
-!aligned-all/alignments-final.json
-!aligned-all/alignments-normalized.json
-viewer.html
+alignment/aligned-test/
+alignment/aligned-all/*
+!alignment/aligned-all/overrides.json
+!alignment/aligned-all/alignments-final.json
+!alignment/aligned-all/alignments-normalized.json
+alignment/viewer.html
 
 # Python
 __pycache__/

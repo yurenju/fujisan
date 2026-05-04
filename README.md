@@ -15,42 +15,62 @@
 
 對齊基準：`PXL_20250905_074912986.RAW-02.ORIGINAL.jpg`（一張多雲、富士山與大樓都清楚可見的照片）。
 
+## 目錄結構
+
+```
+fujisan/
+├── alignment/                    第一階段：對齊處理（本階段全部成果）
+│   ├── images/                   原始照片（~1.2 GB，不進 git）
+│   ├── images-resized/           長邊 1568px JPEG（不進 git，可重生）
+│   ├── aligned-all/              對齊資料
+│   │   ├── alignments.json           自動對齊原始輸出（不進 git）
+│   │   ├── alignments-final.json     像素座標版
+│   │   ├── alignments-normalized.json  ★ 標準格式（解析度無關）
+│   │   └── overrides.json            第一輪手工修正（歷史保留）
+│   ├── viewer.html               build 產物（不進 git）
+│   ├── resize.py
+│   ├── align_test.py             早期 ORB 實驗（保留）
+│   ├── align_all.py
+│   ├── merge_alignments.py
+│   ├── normalize_alignments.py
+│   └── build_viewer.py
+├── README.md
+├── .gitignore
+├── .vscode/                      F5 啟動 viewer (Edge/Chrome)
+└── .claude/                      Claude Code preview 設定
+```
+
 ## 流水線
 
 照片從原檔到可用對齊資料的處理順序：
 
 ```
-images/                          原始照片（~1.2 GB，不進 git）
-   │
+images/                          原始照片
    │  resize.py
    ▼
 images-resized/                  長邊縮到 1568px
-   │
    │  align_all.py               SIFT + ORB fallback + CLAHE + ROI mask
    ▼
 aligned-all/alignments.json      自動對齊結果（含失敗清單）
-   │
    │  merge_alignments.py        合併手動 overrides
    ▼
 aligned-all/alignments-final.json  像素座標版（過渡格式）
-   │
    │  normalize_alignments.py    tx/ty 轉成畫布長邊的比例
    ▼
 aligned-all/alignments-normalized.json  ★ 標準格式（解析度無關）
-   │
    │  build_viewer.py
    ▼
 viewer.html                      瀏覽 + 微調工具
 ```
 
-實際完整流程跑一次：
+實際完整流程跑一次（從專案根目錄）：
 
 ```bash
-python resize.py
-python align_all.py
-python merge_alignments.py
-python normalize_alignments.py
-python build_viewer.py
+python alignment/resize.py
+python alignment/align_all.py
+python alignment/merge_alignments.py
+python alignment/normalize_alignments.py
+python alignment/build_viewer.py
 ```
 
 之後若要繼續微調，**只需要 viewer + build_viewer.py 兩步即可**：在 viewer 裡按 `D` 下載 `alignments-normalized.json` → 覆蓋 → 重 build。
@@ -102,7 +122,7 @@ img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
 
 ## Viewer 操作
 
-啟動：在 VS Code 按 `F5` 選 Edge 或 Chrome；或手動 `python -m http.server 8765` 後開 http://localhost:8765/viewer.html
+啟動：在 VS Code 按 `F5` 選 Edge 或 Chrome；或手動在專案根目錄跑 `python -m http.server 8765` 後開 http://localhost:8765/alignment/viewer.html
 
 | 模式 | 鍵 | 動作 |
 |---|---|---|
@@ -120,19 +140,7 @@ img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
 |  | `R` | 重置這張的編輯 |
 |  | `T` 或 `Esc` | 退出修正模式 |
 
-修正內容會自動存到 localStorage，按 `D` 下載完整 JSON、覆蓋 `aligned-all/alignments-normalized.json` 即可永久生效。
-
-## 檔案說明
-
-| 檔案 | 內容 | 進 git? |
-|---|---|---|
-| `images/` | 原始照片 | 否（太大） |
-| `images-resized/` | 長邊 1568px JPEG | 否（可重生） |
-| `aligned-all/alignments.json` | 純自動對齊原始輸出 | 否 |
-| `aligned-all/alignments-final.json` | 像素座標版（已合併手工） | ✅ |
-| `aligned-all/alignments-normalized.json` | **標準格式** | ✅ |
-| `aligned-all/overrides.json` | 第一輪手工修正（歷史保留） | ✅ |
-| `viewer.html` | build 產物 | 否 |
+修正內容會自動存到 localStorage，按 `D` 下載完整 JSON、覆蓋 `alignment/aligned-all/alignments-normalized.json` 即可永久生效。
 
 ## 環境需求
 

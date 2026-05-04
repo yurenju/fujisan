@@ -500,4 +500,4 @@ src_label = "alignments-normalized.json" if NORMALIZED.exists() else "alignments
 print(f"Wrote viewer.html from {src_label}")
 print(f"  total: {stats['total']}  manual: {stats['manual']}  auto: {stats['auto']}  unaligned: {stats['unaligned']}")
 print(f"  unaligned with neighbor seed: {n_seeded}")
-print(f"Open: http://localhost:8765/viewer.html")
+print(f"Open: http://localhost:8765/alignment/viewer.html")
