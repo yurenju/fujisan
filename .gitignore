@@ -1,0 +1,13 @@
+# Photo data — too large for git, kept locally
+images/
+images-resized/
+
+# Generated outputs
+aligned-test/
+aligned-all/
+viewer.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/

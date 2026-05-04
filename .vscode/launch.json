@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Fujisan viewer (Edge)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:8765/viewer.html",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "serve fujisan"
+    },
+    {
+      "name": "Fujisan viewer (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8765/viewer.html",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "serve fujisan"
+    }
+  ]
+}
