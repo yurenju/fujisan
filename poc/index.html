@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>Fuji POC — pad navigation</title>
+<style>
+  :root {
+    --bg: #111;
+    --fg: #eee;
+    --muted: #666;
+    --top-band: #1a2332;
+    --bottom-band: #2a1a1a;
+    --row-1: #2a2030;
+    --row-2: #2a2438;
+    --row-3: #2e2840;
+    --row-4: #2a2438;
+    --accent: #ffaa44;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+  }
+  body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+  #pad-wrap, #photo-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  h2 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  #pad {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    border: 1px solid #333;
+    background: var(--bg);
+    cursor: crosshair;
+    overflow: hidden;
+    user-select: none;
+  }
+  .band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 11px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .band .label {
+    z-index: 2;
+  }
+  .row-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    background: #222;
+  }
+  .row-frames {
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    left: 12px; right: 12px;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #444 10%, #444 90%, transparent);
+    pointer-events: none;
+  }
+  .frame-tick {
+    position: absolute;
+    top: -2px;
+    width: 1px;
+    height: 6px;
+    background: #555;
+    transform: translateX(-50%);
+  }
+  #cursor {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(255,170,68,0.6);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: opacity 120ms;
+  }
+  #photo-wrap {
+    align-items: stretch;
+  }
+  #photo-frame {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    border: 1px solid #222;
+    overflow: hidden;
+  }
+  /* Fixed-size canvas (calibration coords). Scaled by JS to fit. */
+  #stage-clip {
+    position: relative;
+    overflow: hidden;
+    background: #000;
+  }
+  #stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    background: #000;
+  }
+  #stage img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+  #info {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: "SF Mono", Consolas, monospace;
+    min-height: 18px;
+  }
+</style>
+</head>
+<body>
+  <div id="pad-wrap">
+    <h2>Pad — move cursor</h2>
+    <div id="pad">
+      <div id="cursor" style="opacity:0"></div>
+    </div>
+    <div id="info">load…</div>
+  </div>
+  <div id="photo-wrap">
+    <h2>Current photo</h2>
+    <div id="photo-frame">
+      <div id="stage-clip"><div id="stage"></div></div>
+    </div>
+  </div>
+
+<script>
+const TOP = 0.20, BOTTOM = 0.20;
+const MIDDLE = 1 - TOP - BOTTOM;
+
+const pad = document.getElementById("pad");
+const cursor = document.getElementById("cursor");
+const stage = document.getElementById("stage");
+const photoFrame = document.getElementById("photo-frame");
+const info = document.getElementById("info");
+
+let CANVAS_W = 1568, CANVAS_H = 1568;
+let ALIGN_ITEMS = {};   // filename -> { matrix: [[a,b,tx],[c,d,ty]] in pixel coords }
+let stageImg = null;
+let stageImgFile = null;
+
+function fitStage() {
+  const pad = 16;
+  const w = photoFrame.clientWidth - pad;
+  const h = photoFrame.clientHeight - pad;
+  const s = Math.min(w / CANVAS_W, h / CANVAS_H);
+  const clip = document.getElementById("stage-clip");
+  clip.style.width = (CANVAS_W * s) + "px";
+  clip.style.height = (CANVAS_H * s) + "px";
+  stage.style.width = CANVAS_W + "px";
+  stage.style.height = CANVAS_H + "px";
+  stage.style.transform = `scale(${s})`;
+}
+window.addEventListener("resize", fitStage);
+
+function showPhoto(file) {
+  if (file === stageImgFile) return;
+  stageImgFile = file;
+  stage.innerHTML = "";
+  const img = document.createElement("img");
+  img.src = "../alignment/images-resized/" + file;
+  const item = ALIGN_ITEMS[file];
+  if (item && item.matrix) {
+    const [[a, b, tx], [c, d, ty]] = item.matrix;
+    img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
+  }
+  stage.appendChild(img);
+  stageImg = img;
+}
+
+function build(data) {
+  const ROWS = data.sequences.length;
+  const rowH = MIDDLE / ROWS;
+
+  // Top band visual
+  const top = document.createElement("div");
+  top.className = "band";
+  top.style.top = "0";
+  top.style.height = (TOP * 100) + "%";
+  top.style.background = "var(--top-band)";
+  top.innerHTML = `<span class="label">top rest · 早上的散張 · ${data.topRest.length} photos</span>`;
+  pad.appendChild(top);
+
+  // Bottom band
+  const bot = document.createElement("div");
+  bot.className = "band";
+  bot.style.bottom = "0";
+  bot.style.height = (BOTTOM * 100) + "%";
+  bot.style.background = "var(--bottom-band)";
+  bot.innerHTML = `<span class="label">bottom rest · 其他散張 · 05/04 水墨在最右 · ${data.bottomRest.length} photos</span>`;
+  bot.style.justifyContent = "space-between";
+  pad.appendChild(bot);
+
+  // Middle 4 rows
+  data.sequences.forEach((seq, i) => {
+    const row = document.createElement("div");
+    row.className = "band";
+    const topPct = (TOP + i * rowH) * 100;
+    row.style.top = topPct + "%";
+    row.style.height = (rowH * 100) + "%";
+    row.style.background = `var(--row-${i+1})`;
+    row.innerHTML = `<span class="label">Row ${i+1} · ${seq.date} · ${seq.start}–${seq.end} · ${seq.photos.length} 張</span>`;
+
+    // Frame tick marks (visualizing photo positions within the row)
+    const frames = document.createElement("div");
+    frames.className = "row-frames";
+    seq.photos.forEach((_, fi) => {
+      const tick = document.createElement("div");
+      tick.className = "frame-tick";
+      tick.style.left = ((fi + 0.5) / seq.photos.length * 100) + "%";
+      frames.appendChild(tick);
+    });
+    row.appendChild(frames);
+    pad.appendChild(row);
+
+    // Bottom border line (except last)
+    if (i < ROWS - 1) {
+      const line = document.createElement("div");
+      line.className = "row-line";
+      line.style.top = ((TOP + (i+1) * rowH) * 100) + "%";
+      pad.appendChild(line);
+    }
+  });
+
+  // Re-mount cursor on top of bands
+  pad.appendChild(cursor);
+
+  // Mouse handler
+  let lastFile = null;
+  function pick(x, y) {
+    let file, where;
+    if (y < TOP) {
+      const arr = data.topRest;
+      const i = Math.min(arr.length - 1, Math.max(0, Math.floor(x * arr.length)));
+      file = arr[i];
+      where = `top[${i+1}/${arr.length}]`;
+    } else if (y >= 1 - BOTTOM) {
+      const arr = data.bottomRest;
+      const i = Math.min(arr.length - 1, Math.max(0, Math.floor(x * arr.length)));
+      file = arr[i];
+      where = `bottom[${i+1}/${arr.length}]`;
+    } else {
+      const yMid = (y - TOP) / MIDDLE;
+      const r = Math.min(ROWS - 1, Math.max(0, Math.floor(yMid * ROWS)));
+      const seq = data.sequences[r];
+      const i = Math.min(seq.photos.length - 1, Math.max(0, Math.floor(x * seq.photos.length)));
+      file = seq.photos[i];
+      where = `row${r+1}[${i+1}/${seq.photos.length}] ${seq.date}`;
+    }
+    return { file, where };
+  }
+
+  pad.addEventListener("mousemove", (e) => {
+    const rect = pad.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    cursor.style.left = (x * 100) + "%";
+    cursor.style.top = (y * 100) + "%";
+    cursor.style.opacity = "1";
+    const { file, where } = pick(x, y);
+    if (file !== lastFile) {
+      showPhoto(file);
+      lastFile = file;
+    }
+    info.textContent = `${where}  ·  ${file}`;
+  });
+  pad.addEventListener("mouseleave", () => { cursor.style.opacity = "0"; });
+}
+
+Promise.all([
+  fetch("data.json").then(r => r.json()),
+  fetch("../alignment/aligned-all/alignments-normalized.json").then(r => r.json()),
+]).then(([data, align]) => {
+  // Denormalize matrix: tx, ty are fractions of canvas edge; multiply by K (px).
+  const K = align.calibration_unit_px || 1568;
+  CANVAS_W = K;
+  CANVAS_H = K;
+  for (const [name, r] of Object.entries(align.items)) {
+    if (!r.matrix) continue;
+    const [a, b, txN] = r.matrix[0];
+    const [c, d, tyN] = r.matrix[1];
+    ALIGN_ITEMS[name] = { matrix: [[a, b, txN * K], [c, d, tyN * K]] };
+  }
+  fitStage();
+  build(data);
+}).catch(err => { info.textContent = "Failed to load: " + err; });
+</script>
+</body>
+</html>
