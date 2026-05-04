@@ -1,21 +1,59 @@
-"""Generate viewer.html from alignments-final.json.
+"""Generate viewer.html from alignments-normalized.json.
 
-The final file is the canonical source of truth. The viewer reads it directly
-and, when you edit photos, lets you download a complete replacement file —
-just overwrite alignments-final.json on disk to commit your changes.
+The normalized file is the canonical source of truth: tx and ty are stored
+as fractions of the calibration canvas edge, so the same data drives any
+target resolution. The viewer denormalizes to the calibration canvas size
+internally for editing, and re-normalizes when you download — overwrite
+alignments-normalized.json on disk to commit further manual fixes.
 """
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+NORMALIZED = ROOT / "aligned-all" / "alignments-normalized.json"
 FINAL = ROOT / "aligned-all" / "alignments-final.json"
 
-if not FINAL.exists():
+# Read the normalized file so we exercise the resolution-independent format,
+# then denormalize to the calibration canvas size (square) for the viewer's
+# pixel-coordinate runtime. Falls back to the final file if normalized is absent.
+if NORMALIZED.exists():
+    norm = json.load(open(NORMALIZED))
+    K = norm["calibration_unit_px"]
+    final_data = json.load(open(FINAL))  # for canvas/reference/stats metadata
+    items_dict = {}
+    for name, r in norm["items"].items():
+        if r.get("matrix") is None:
+            items_dict[name] = {
+                "matrix": None,
+                "source": r.get("source", "unaligned"),
+                "reason": r.get("reason"),
+                "src_w": final_data["items"][name].get("src_w"),
+                "src_h": final_data["items"][name].get("src_h"),
+            }
+            continue
+        a, b, tx_n = r["matrix"][0]
+        c, d, ty_n = r["matrix"][1]
+        items_dict[name] = {
+            "matrix": [[a, b, tx_n * K], [c, d, ty_n * K]],
+            "scale": r.get("scale"),
+            "rotation_deg": r.get("rotation_deg"),
+            "src_w": final_data["items"][name].get("src_w"),
+            "src_h": final_data["items"][name].get("src_h"),
+            "source": r.get("source"),
+        }
+    data = {
+        "reference": final_data["reference"],
+        "canvas": final_data["canvas"],
+        "stats": final_data.get("stats", {}),
+        "items": items_dict,
+    }
+elif FINAL.exists():
+    data = json.load(open(FINAL))
+else:
     raise SystemExit(
-        f"Missing {FINAL}. Run align_all.py then merge_alignments.py first."
+        f"Missing {NORMALIZED} and {FINAL}. Run align_all.py + merge_alignments.py first."
     )
 
-data = json.load(open(FINAL))
 ordered = sorted(data["items"].items())  # filenames are timestamps
 
 
@@ -126,7 +164,7 @@ HTML = """<!doctype html>
 
 <div id="help" class="panel">
   <div><b>檢視</b>: <kbd>←</kbd><kbd>→</kbd> 切換 <kbd>A</kbd> 對齊 <kbd>O</kbd> 疊圖 <kbd>F</kbd> 已對齊 <kbd>G</kbd> 未對齊</div>
-  <div style="margin-top: 4px;"><b>修正</b>: <kbd>T</kbd> 進入/退出 &nbsp; <kbd>D</kbd> 下載完整 alignments-final.json &nbsp; <kbd>C</kbd> 清除本地編輯</div>
+  <div style="margin-top: 4px;"><b>修正</b>: <kbd>T</kbd> 進入/退出 &nbsp; <kbd>D</kbd> 下載完整 alignments-normalized.json &nbsp; <kbd>C</kbd> 清除本地編輯</div>
   <div style="margin-top: 2px; color: #888;">修正模式中：<kbd>↑↓←→</kbd> 移動 (Shift = ×10) <kbd>Z</kbd><kbd>X</kbd> 旋轉 <kbd>-</kbd><kbd>=</kbd> 縮放 <kbd>R</kbd> 重置</div>
 </div>
 
@@ -134,7 +172,8 @@ HTML = """<!doctype html>
 const ITEMS = __ITEMS__;
 const REF_NAME = __REF__;
 const CANVAS = __CANVAS__;
-const META = __META__;  // {reference, canvas, stats from final}
+const META = __META__;  // {reference, canvas, stats, calibration_unit_px}
+const K = META.calibration_unit_px;  // canvas edge in calibration pixels
 const STORAGE_KEY = 'fujisan_local_edits_v1';
 
 const frame = document.getElementById('frame');
@@ -345,54 +384,56 @@ function clearLocalEdits() {
   render();
 }
 
-// Build full alignments-final.json with local edits applied.
-function buildFinalSnapshot() {
+// Build full alignments-normalized.json with local edits applied. Pixel
+// translations get divided by K to match the on-disk normalized format.
+function buildNormalizedSnapshot() {
   const out = {
     reference: META.reference,
-    canvas: META.canvas,
-    stats: META.stats,
+    calibration_unit_px: K,
+    coordinate_system: META.coordinate_system,
     items: {},
   };
   let nManual = 0, nAuto = 0, nUnaligned = 0;
   for (const it of ITEMS) {
+    let M, src, scale, rot;
     if (localEdits[it.name]) {
       const p = localEdits[it.name];
-      out.items[it.name] = {
-        matrix: paramsToMatrix(p),
-        scale: p.scale, rotation_deg: p.rot, tx: p.tx, ty: p.ty,
-        src_w: it.src_w, src_h: it.src_h,
-        source: 'manual',
-      };
-      nManual++;
+      M = paramsToMatrix(p);
+      scale = p.scale; rot = p.rot; src = 'manual';
     } else if (it.matrix) {
-      out.items[it.name] = {
-        matrix: it.matrix,
-        scale: it.scale, rotation_deg: it.rot,
-        tx: it.matrix[0][2], ty: it.matrix[1][2],
-        src_w: it.src_w, src_h: it.src_h,
-        source: it.source,
-      };
-      if (it.source === 'manual') nManual++; else nAuto++;
+      M = it.matrix;
+      scale = it.scale; rot = it.rot; src = it.source;
     } else {
       out.items[it.name] = {
         matrix: null,
-        src_w: it.src_w, src_h: it.src_h,
         source: 'unaligned',
         reason: it.reason,
       };
       nUnaligned++;
+      continue;
     }
+    const [[a, b, tx], [c, d, ty]] = M;
+    out.items[it.name] = {
+      matrix: [[a, b, tx / K], [c, d, ty / K]],
+      scale: scale,
+      rotation_deg: rot,
+      tx: tx / K,
+      ty: ty / K,
+      src_aspect: (it.src_w && it.src_h) ? it.src_w / it.src_h : null,
+      source: src,
+    };
+    if (src === 'manual') nManual++; else nAuto++;
   }
   out.stats = { total: ITEMS.length, manual: nManual, auto: nAuto, unaligned: nUnaligned };
   return out;
 }
 
-function downloadFinal() {
-  const snap = buildFinalSnapshot();
+function downloadNormalized() {
+  const snap = buildNormalizedSnapshot();
   const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'alignments-final.json';
+  a.download = 'alignments-normalized.json';
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -409,7 +450,7 @@ document.addEventListener('keydown', e => {
     if (e.key === '-' || e.key === '_') { nudge(null, null, big ? 0.95 : 0.99, null); return; }
     if (e.key === '=' || e.key === '+') { nudge(null, null, big ? 1.05 : 1.01, null); return; }
     if (e.key === 'r' || e.key === 'R') { resetCurrent(); return; }
-    if (e.key === 'd' || e.key === 'D') { downloadFinal(); return; }
+    if (e.key === 'd' || e.key === 'D') { downloadNormalized(); return; }
     if (e.key === 't' || e.key === 'T' || e.key === 'Escape') { exitEditMode(); return; }
     return;
   }
@@ -420,7 +461,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'f' || e.key === 'F') { cbOnlyAligned.checked = !cbOnlyAligned.checked; if (cbOnlyAligned.checked) cbOnlyUnaligned.checked = false; idx = 0; render(); }
   else if (e.key === 'g' || e.key === 'G') { cbOnlyUnaligned.checked = !cbOnlyUnaligned.checked; if (cbOnlyUnaligned.checked) cbOnlyAligned.checked = false; idx = 0; render(); }
   else if (e.key === 't' || e.key === 'T') { enterEditMode(); }
-  else if (e.key === 'd' || e.key === 'D') { downloadFinal(); }
+  else if (e.key === 'd' || e.key === 'D') { downloadNormalized(); }
   else if (e.key === 'c' || e.key === 'C') { clearLocalEdits(); }
 });
 
@@ -441,12 +482,22 @@ html = (HTML
         .replace("__ITEMS__", json.dumps(items))
         .replace("__REF__", json.dumps(ref_name))
         .replace("__CANVAS__", json.dumps(canvas))
-        .replace("__META__", json.dumps({"reference": ref_name, "canvas": canvas, "stats": stats})))
+        .replace("__META__", json.dumps({
+            "reference": ref_name,
+            "canvas": canvas,
+            "stats": stats,
+            "calibration_unit_px": canvas["w"],
+            "coordinate_system": (
+                "Square canvas, normalized to unit length 1.0. "
+                "tx and ty are fractions of the canvas edge."
+            ),
+        })))
 
 (ROOT / "viewer.html").write_text(html, encoding="utf-8")
 
 n_seeded = sum(1 for it in items if it.get("seed"))
-print(f"Wrote viewer.html from alignments-final.json")
+src_label = "alignments-normalized.json" if NORMALIZED.exists() else "alignments-final.json"
+print(f"Wrote viewer.html from {src_label}")
 print(f"  total: {stats['total']}  manual: {stats['manual']}  auto: {stats['auto']}  unaligned: {stats['unaligned']}")
 print(f"  unaligned with neighbor seed: {n_seeded}")
 print(f"Open: http://localhost:8765/viewer.html")
