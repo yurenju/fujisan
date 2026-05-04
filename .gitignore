@@ -6,6 +6,7 @@ images-resized/
 aligned-test/
 aligned-all/*
 !aligned-all/overrides.json
+!aligned-all/alignments-final.json
 viewer.html
 
 # Python
