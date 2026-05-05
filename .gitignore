@@ -14,3 +14,9 @@ alignment/viewer.html
 __pycache__/
 *.pyc
 .venv/
+
+# Superpowers brainstorm session artifacts
+.superpowers/
+
+# Regenerable previews
+poc/rest_color_order.html
