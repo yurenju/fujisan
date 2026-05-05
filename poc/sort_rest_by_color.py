@@ -8,12 +8,12 @@ Does NOT modify data.json. After eyeballing the output you can paste the new
 order into data.json (or extend build_data.py).
 
 Algorithm:
-  1. Mean L*a*b* color per image (downsampled to 64x64).
-  2. Greedy nearest-neighbor traversal in LAB starting from a chosen anchor.
-  3. Bottom rest: ink-wash photo (20260504) is anchored to the end, regardless
-     of where NN would place it.
-
-Anchor for both rows defaults to the first item in the input list.
+  1. Mean L*a*b* over the top half (sky region) of each image.
+  2. Sort along the cool→warm axis: primarily by b (yellow vs blue), with a
+     (red vs green) as tiebreaker. This is a single linear projection so it
+     avoids the wraparound problem of hue angle, and stays sensible for
+     near-neutral photos whose hue would otherwise be dominated by noise.
+  3. Bottom rest: ink-wash photo (20260504) is forced to the very end.
 """
 import json
 import math
@@ -31,10 +31,13 @@ THUMB = 64
 
 
 def mean_lab(filename):
+    """Mean L*a*b* over the top half of the image (sky region)."""
     path = os.path.join(IMG_DIR, filename)
     with Image.open(path) as im:
-        im.thumbnail((THUMB, THUMB))
-        lab = im.convert("LAB")
+        w, h = im.size
+        sky = im.crop((0, 0, w, h // 2))
+        sky.thumbnail((THUMB, THUMB))
+        lab = sky.convert("LAB")
         px = lab.getdata()
         n = len(px)
         sl = sa = sb = 0
@@ -43,23 +46,15 @@ def mean_lab(filename):
         return (sl / n, sa / n, sb / n)
 
 
-def dist(a, b):
-    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+def warmth_key(lab):
+    """Cool→warm projection: b primary (yellow/blue), a secondary (red/green)."""
+    _, a, b = lab
+    return (b, a)
 
 
-def greedy_nn(items, anchor_idx=0):
-    """items: [(filename, lab)]. Returns reordered list, anchor first."""
-    remaining = list(items)
-    ordered = [remaining.pop(anchor_idx)]
-    while remaining:
-        last_lab = ordered[-1][1]
-        ni, nd = 0, dist(last_lab, remaining[0][1])
-        for i in range(1, len(remaining)):
-            d = dist(last_lab, remaining[i][1])
-            if d < nd:
-                ni, nd = i, d
-        ordered.append(remaining.pop(ni))
-    return ordered
+def warmth_sort(items):
+    """Sort items along the cool→warm axis. Items: [(filename, lab)]."""
+    return sorted(items, key=lambda it: warmth_key(it[1]))
 
 
 def render_html(top_ordered, bottom_ordered, output):
@@ -93,8 +88,8 @@ def render_html(top_ordered, bottom_ordered, output):
   .name {{ color:#555; }}
 </style></head><body>
 <h1>Rest color order — preview</h1>
-<p style="color:#888;font-size:12px">Greedy nearest-neighbor in L*a*b* (downsampled 64×64).
-Anchor = first item of original list. Bottom: ink-wash (20260504) forced last.</p>
+<p style="color:#888;font-size:12px">Sorted along cool→warm axis: primary b (yellow/blue), secondary a
+(red/green), of top-half mean L*a*b*. Bottom: ink-wash (20260504) forced last.</p>
 {strip("Top rest", top_ordered)}
 {strip("Bottom rest", bottom_ordered)}
 </body></html>"""
@@ -112,12 +107,12 @@ def main():
     top_items = [(f, mean_lab(f)) for f in top]
     bottom_items = [(f, mean_lab(f)) for f in bottom]
 
-    top_ordered = greedy_nn(top_items, anchor_idx=0)
+    top_ordered = warmth_sort(top_items)
 
-    # Bottom: separate ink-wash, NN-sort the rest, ink-wash forced last
+    # Bottom: cool→warm sort, then force ink-wash to the very end
     ink = [it for it in bottom_items if "20260504" in it[0]]
     rest = [it for it in bottom_items if "20260504" not in it[0]]
-    bottom_ordered = greedy_nn(rest, anchor_idx=0) + ink
+    bottom_ordered = warmth_sort(rest) + ink
 
     print("\n=== topRest (color-sorted) ===")
     for f, lab in top_ordered:
