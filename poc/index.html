@@ -168,7 +168,7 @@ const info = document.getElementById("info");
 
 let CANVAS_W = 1568, CANVAS_H = 1568;
 let ALIGN_ITEMS = {};   // filename -> { matrix: [[a,b,tx],[c,d,ty]] in pixel coords }
-let stageImg = null;
+let IMG_BY_FILE = {};   // filename -> <img> element (all attached, hidden)
 let stageImgFile = null;
 
 function fitStage() {
@@ -185,19 +185,30 @@ function fitStage() {
 }
 window.addEventListener("resize", fitStage);
 
+function preloadAll(allFiles) {
+  for (const file of allFiles) {
+    if (IMG_BY_FILE[file]) continue;
+    const img = document.createElement("img");
+    img.src = "../alignment/images-resized/" + file;
+    img.style.display = "none";
+    const item = ALIGN_ITEMS[file];
+    if (item && item.matrix) {
+      const [[a, b, tx], [c, d, ty]] = item.matrix;
+      img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
+    }
+    stage.appendChild(img);
+    IMG_BY_FILE[file] = img;
+  }
+}
+
 function showPhoto(file) {
   if (file === stageImgFile) return;
-  stageImgFile = file;
-  stage.innerHTML = "";
-  const img = document.createElement("img");
-  img.src = "../alignment/images-resized/" + file;
-  const item = ALIGN_ITEMS[file];
-  if (item && item.matrix) {
-    const [[a, b, tx], [c, d, ty]] = item.matrix;
-    img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
+  if (stageImgFile && IMG_BY_FILE[stageImgFile]) {
+    IMG_BY_FILE[stageImgFile].style.display = "none";
   }
-  stage.appendChild(img);
-  stageImg = img;
+  const img = IMG_BY_FILE[file];
+  if (img) img.style.display = "";
+  stageImgFile = file;
 }
 
 function build(data) {
@@ -314,6 +325,11 @@ Promise.all([
     ALIGN_ITEMS[name] = { matrix: [[a, b, txN * K], [c, d, tyN * K]] };
   }
   fitStage();
+  const allFiles = [
+    ...data.topRest, ...data.bottomRest,
+    ...data.sequences.flatMap(s => s.photos),
+  ];
+  preloadAll(allFiles);
   build(data);
 }).catch(err => { info.textContent = "Failed to load: " + err; });
 </script>
