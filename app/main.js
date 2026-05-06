@@ -85,7 +85,8 @@ function wireMobile(source, initialPermission) {
       permission = await ensurePermission();
       if (permission !== 'granted') {
         tiltBtn.classList.add('denied');
-        return; // Task 10 will install touch-drag fallback here
+        wireTouchDragFallback();
+        return;
       }
     }
     startPress(source);
@@ -95,6 +96,33 @@ function wireMobile(source, initialPermission) {
   tiltBtn.addEventListener('touchend', handlerUp);
   tiltBtn.addEventListener('touchcancel', handlerUp);
   source.onTilt(onTiltUpdate);
+}
+
+let touchFallbackInstalled = false;
+function wireTouchDragFallback() {
+  if (touchFallbackInstalled) return;
+  touchFallbackInstalled = true;
+  const fb = createPointerSource({ maxDeg: tuning.values.s });
+  let active = false;
+  const fakeMouse = (type, t) =>
+    window.dispatchEvent(new MouseEvent(type, { clientX: t.clientX, clientY: t.clientY, button: 0 }));
+  document.addEventListener('touchstart', (e) => {
+    if (e.target === tiltBtn || tiltBtn.contains(e.target)) return;
+    active = true;
+    fakeMouse('mousedown', e.touches[0]);
+  });
+  document.addEventListener('touchmove', (e) => {
+    if (!active) return;
+    fakeMouse('mousemove', e.touches[0]);
+  });
+  document.addEventListener('touchend', () => {
+    if (!active) return;
+    active = false;
+    fakeMouse('mouseup', { clientX: 0, clientY: 0 });
+  });
+  fb.onPressStart(() => startPress(fb));
+  fb.onPressEnd(() => endPress());
+  fb.onTilt(onTiltUpdate);
 }
 
 function wireDesktop(source) {
