@@ -14,8 +14,14 @@ const tiltBtn = document.getElementById('tilt-button');
 const debugPanel = document.getElementById('debug-panel');
 const progress = document.getElementById('progress');
 
-const tuning = createTuning({ defaults: { s: 20, d: 0.4, h: 0.5 } });
-mountSliders(debugPanel, tuning, { s: [10, 40], d: [0, 1], h: [0, 1] });
+const tuning = createTuning({ defaults: { sv: 25, sh: 15, d: 0.4, h: 0.5, inv: 1 } });
+mountSliders(debugPanel, tuning, [
+  { key: 'sv',  label: 'sensitivity ↕', min: 10, max: 40, step: 0.5, unit: '°' },
+  { key: 'sh',  label: 'sensitivity ↔', min: 10, max: 40, step: 0.5, unit: '°' },
+  { key: 'd',   label: 'tilt damping', min: 0, max: 1, step: 0.05 },
+  { key: 'h',   label: 'highlight',    min: 0, max: 1, step: 0.05 },
+  { key: 'inv', label: 'invert',       min: 0, max: 1, step: 1 },
+]);
 let photoMap = null;
 
 let CANVAS = 1568;
@@ -76,7 +82,10 @@ function endPress(source) {
 
 function onTiltUpdate(ev) {
   applyTiltVisual(polaroid, ev, { tiltDamping: tuning.values.d, highlightIntensity: tuning.values.h });
-  const { row, col } = tiltToIndex(ev, baseRow01, baseCol01, tuning.values.s, rows);
+  // Polaroid keeps physical correspondence; mapping direction can be inverted.
+  const sign = tuning.values.inv ? -1 : 1;
+  const mapEv = { db: ev.db * sign, dg: ev.dg * sign };
+  const { row, col } = tiltToIndex(mapEv, baseRow01, baseCol01, { sv: tuning.values.sv, sh: tuning.values.sh }, rows);
   if (row !== currentRow || col !== currentCol) setPhoto(row, col);
 }
 
@@ -119,7 +128,7 @@ let touchFallbackInstalled = false;
 function wireTouchDragFallback() {
   if (touchFallbackInstalled) return;
   touchFallbackInstalled = true;
-  const fb = createPointerSource({ maxDeg: tuning.values.s });
+  const fb = createPointerSource({ maxV: tuning.values.sv, maxH: tuning.values.sh });
   let active = false;
   const fakeMouse = (type, t) =>
     window.dispatchEvent(new MouseEvent(type, { clientX: t.clientX, clientY: t.clientY, button: 0 }));
@@ -166,7 +175,7 @@ async function init() {
   if (isCoarsePointer()) {
     wireMobile(createGyroSource({ alpha: 0.18 }), initialPermission);
   } else {
-    wireDesktop(createPointerSource({ maxDeg: tuning.values.s }));
+    wireDesktop(createPointerSource({ maxV: tuning.values.sv, maxH: tuning.values.sh }));
   }
 }
 

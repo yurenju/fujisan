@@ -2,7 +2,7 @@
 // onTilt({db, dg}), startCalibrated(), stop(). Also exposes onPressStart /
 // onPressEnd so main.js can drive the same press-to-recalibrate flow.
 
-export function createPointerSource({ maxDeg = 20 } = {}) {
+export function createPointerSource({ maxV = 20, maxH = 20 } = {}) {
   const tiltListeners = [];
   const pressStartListeners = [];
   const pressEndListeners = [];
@@ -26,8 +26,8 @@ export function createPointerSource({ maxDeg = 20 } = {}) {
     lastX = e.clientX;
     lastY = e.clientY;
     if (!calibrated) return;
-    const dg = ((lastX - neutralX) / window.innerWidth)  * maxDeg;
-    const db = ((lastY - neutralY) / window.innerHeight) * maxDeg;
+    const dg = ((lastX - neutralX) / window.innerWidth)  * maxH;
+    const db = ((lastY - neutralY) / window.innerHeight) * maxV;
     tiltListeners.forEach(fn => fn({ db, dg }));
   };
 

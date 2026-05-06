@@ -31,17 +31,30 @@ export function createTuning({ defaults }) {
   return { values, set };
 }
 
-export function mountSliders(container, tuning, ranges) {
+// configs: array of { key, label, min, max, step, unit? }
+// Each entry renders one labelled slider bound to tuning.set(key, value).
+export function mountSliders(container, tuning, configs) {
   const wrap = document.createElement('div');
   wrap.className = 'debug-sliders';
-  wrap.innerHTML = `
-    <label>sensitivity <span data-out="s">${tuning.values.s}</span>°</label>
-    <input type="range" min="${ranges.s[0]}" max="${ranges.s[1]}" step="0.5" value="${tuning.values.s}" data-key="s">
-    <label>tilt damping <span data-out="d">${tuning.values.d}</span></label>
-    <input type="range" min="${ranges.d[0]}" max="${ranges.d[1]}" step="0.05" value="${tuning.values.d}" data-key="d">
-    <label>highlight <span data-out="h">${tuning.values.h}</span></label>
-    <input type="range" min="${ranges.h[0]}" max="${ranges.h[1]}" step="0.05" value="${tuning.values.h}" data-key="h">
-  `;
+
+  for (const c of configs) {
+    const label = document.createElement('label');
+    const out = document.createElement('span');
+    out.dataset.out = c.key;
+    out.textContent = String(tuning.values[c.key]);
+    label.append(`${c.label} `, out, c.unit || '');
+    wrap.appendChild(label);
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = c.min;
+    input.max = c.max;
+    input.step = c.step;
+    input.value = tuning.values[c.key];
+    input.dataset.key = c.key;
+    wrap.appendChild(input);
+  }
+
   container.appendChild(wrap);
   wrap.addEventListener('input', (e) => {
     const key = e.target.dataset.key;
