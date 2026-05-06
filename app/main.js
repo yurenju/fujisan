@@ -82,22 +82,36 @@ function onTiltUpdate(ev) {
 
 function wireMobile(source, initialPermission) {
   let permission = initialPermission;
-  const handlerDown = async (e) => {
-    e.preventDefault();
+
+  // iOS Safari requires DeviceOrientationEvent.requestPermission() to be
+  // called from a 'click' (or 'touchend')-level user gesture; calling it
+  // from 'touchstart' is rejected as not-a-gesture. So request on click
+  // (which fires on tap completion), and only run the press lifecycle on
+  // touchstart/touchend after permission is granted.
+  const handleClick = async () => {
+    if (permission === 'granted') return;
+    permission = await ensurePermission();
     if (permission !== 'granted') {
-      permission = await ensurePermission();
-      if (permission !== 'granted') {
-        tiltBtn.classList.add('denied');
-        wireTouchDragFallback();
-        return;
-      }
+      tiltBtn.classList.add('denied');
+      wireTouchDragFallback();
     }
+  };
+
+  const handleTouchStart = (e) => {
+    if (permission !== 'granted') return; // let native click fire to request
+    e.preventDefault();
     startPress(source);
   };
-  const handlerUp = () => endPress(source);
-  tiltBtn.addEventListener('touchstart', handlerDown, { passive: false });
-  tiltBtn.addEventListener('touchend', handlerUp);
-  tiltBtn.addEventListener('touchcancel', handlerUp);
+
+  const handleTouchEnd = () => {
+    if (permission !== 'granted') return;
+    endPress(source);
+  };
+
+  tiltBtn.addEventListener('click', handleClick);
+  tiltBtn.addEventListener('touchstart', handleTouchStart, { passive: false });
+  tiltBtn.addEventListener('touchend', handleTouchEnd);
+  tiltBtn.addEventListener('touchcancel', handleTouchEnd);
   source.onTilt(onTiltUpdate);
 }
 
