@@ -54,41 +54,54 @@ export function mountSliders(container, tuning, ranges) {
   return wrap;
 }
 
-// Visualize current tilt delta inside a square: dot inside the box = within
-// sensitivity range; dot outside (and red) = clamped — photo index has hit
-// the edge while polaroid keeps rotating.
-export function mountTiltScope(container) {
+// Photo map: 6 rows × variable columns (each row's width is divided evenly
+// among its own photo count). Highlights the currently displayed photo so
+// the user can see exactly which (row, col) the tilt has navigated to.
+// Highlight persists after release.
+export function mountPhotoMap(container, rows) {
   const wrap = document.createElement('div');
-  wrap.className = 'tilt-scope';
-  wrap.innerHTML = `
-    <div class="scope-box">
-      <div class="scope-cross"></div>
-      <div class="scope-dot"></div>
-    </div>
-    <div class="scope-readout"><span data-out="db">0.0</span>° / <span data-out="dg">0.0</span>°</div>
-  `;
-  container.appendChild(wrap);
-  const dot = wrap.querySelector('.scope-dot');
-  const dbOut = wrap.querySelector('[data-out="db"]');
-  const dgOut = wrap.querySelector('[data-out="dg"]');
+  wrap.className = 'photo-map';
 
+  const header = document.createElement('div');
+  header.className = 'pm-header';
+  header.textContent = 'photo map';
+  wrap.appendChild(header);
+
+  const grid = document.createElement('div');
+  grid.className = 'pm-grid';
+  const cells = [];
+  rows.forEach((row, rowIdx) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'pm-row';
+    cells[rowIdx] = [];
+    row.photos.forEach((_, colIdx) => {
+      const cell = document.createElement('div');
+      cell.className = 'pm-cell';
+      cell.title = `${row.label} #${colIdx + 1}`;
+      rowEl.appendChild(cell);
+      cells[rowIdx][colIdx] = cell;
+    });
+    grid.appendChild(rowEl);
+  });
+  wrap.appendChild(grid);
+
+  const readout = document.createElement('div');
+  readout.className = 'pm-readout';
+  wrap.appendChild(readout);
+
+  container.appendChild(wrap);
+
+  let active = null;
   return {
-    update({ db, dg, sensitivityDeg }) {
-      const xUnit = dg / sensitivityDeg;
-      const yUnit = db / sensitivityDeg;
-      const xPx = Math.max(-1.5, Math.min(1.5, xUnit)) * 60;
-      const yPx = Math.max(-1.5, Math.min(1.5, yUnit)) * 60;
-      dot.style.transform = `translate(${xPx}px, ${yPx}px)`;
-      const clamped = Math.abs(xUnit) > 1 || Math.abs(yUnit) > 1;
-      dot.classList.toggle('clamped', clamped);
-      dbOut.textContent = db.toFixed(1);
-      dgOut.textContent = dg.toFixed(1);
-    },
-    reset() {
-      dot.style.transform = 'translate(0, 0)';
-      dot.classList.remove('clamped');
-      dbOut.textContent = '0.0';
-      dgOut.textContent = '0.0';
+    highlight(rowIdx, colIdx) {
+      if (active) active.classList.remove('active');
+      const cell = cells[rowIdx]?.[colIdx];
+      if (cell) {
+        cell.classList.add('active');
+        active = cell;
+      }
+      const r = rows[rowIdx];
+      if (r) readout.textContent = `${r.label}  ${colIdx + 1} / ${r.photos.length}`;
     },
   };
 }

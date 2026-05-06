@@ -170,8 +170,8 @@ img {
 }
 .debug-sliders input[type="range"] { width: 100%; }
 
-/* Tilt scope — debug visualization of current (db, dg) vs sensitivity bounds */
-.tilt-scope {
+/* Photo map — debug visualization of current (row, col) on the photo grid */
+.photo-map {
   margin-top: 8px;
   padding: 12px;
   background: rgba(0,0,0,0.7);
@@ -182,43 +182,34 @@ img {
   width: 180px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 6px;
 }
-.scope-box {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  border: 1px dashed rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.02);
-  overflow: visible;
+.pm-header {
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
-.scope-cross {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(to right, transparent calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
-    linear-gradient(to bottom, transparent calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+.pm-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
-.scope-dot {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: #4dabd3;
-  box-shadow: 0 0 8px rgba(77, 171, 211, 0.6);
-  transition: transform 60ms linear, background 200ms ease, box-shadow 200ms ease;
-  pointer-events: none;
+.pm-row {
+  display: flex;
+  gap: 1px;
+  height: 14px;
 }
-.scope-dot.clamped {
+.pm-cell {
+  flex: 1 1 auto;
+  background: rgba(255,255,255,0.08);
+  border-radius: 1px;
+}
+.pm-cell.active {
   background: var(--accent-red);
-  box-shadow: 0 0 10px rgba(211, 77, 77, 0.7);
+  box-shadow: 0 0 4px rgba(211,77,77,0.7);
 }
-.scope-readout {
+.pm-readout {
   font-family: "SF Mono", Consolas, monospace;
   font-size: 10px;
   color: #888;

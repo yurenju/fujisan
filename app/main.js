@@ -3,7 +3,7 @@ import { probePermission, ensurePermission, createGyroSource } from './src/gyro.
 import { createPointerSource } from './src/pointer.js';
 import { tiltToIndex } from './src/mapping.js';
 import { applyTiltVisual } from './src/polaroid.js';
-import { createTuning, mountSliders, mountTiltScope } from './src/debug.js';
+import { createTuning, mountSliders, mountPhotoMap } from './src/debug.js';
 
 const polaroid = document.getElementById('polaroid');
 const photoFrame = document.getElementById('photo-frame');
@@ -16,7 +16,7 @@ const progress = document.getElementById('progress');
 
 const tuning = createTuning({ defaults: { s: 20, d: 0.4, h: 0.5 } });
 mountSliders(debugPanel, tuning, { s: [10, 40], d: [0, 1], h: [0, 1] });
-const scope = mountTiltScope(debugPanel);
+let photoMap = null;
 
 let CANVAS = 1568;
 let rows = [];
@@ -53,6 +53,7 @@ function setPhoto(rowIdx, colIdx) {
       caption.textContent = file;
     }
   }
+  photoMap?.highlight(rowIdx, colIdx);
 }
 
 function isCoarsePointer() {
@@ -71,12 +72,10 @@ function endPress(source) {
   applyTiltVisual(polaroid, { db: 0, dg: 0 }, { tiltDamping: tuning.values.d, highlightIntensity: tuning.values.h });
   tiltBtn?.classList.remove('active');
   source?.endCalibrated?.();
-  scope.reset();
 }
 
 function onTiltUpdate(ev) {
   applyTiltVisual(polaroid, ev, { tiltDamping: tuning.values.d, highlightIntensity: tuning.values.h });
-  scope.update({ db: ev.db, dg: ev.dg, sensitivityDeg: tuning.values.s });
   const { row, col } = tiltToIndex(ev, baseRow01, baseCol01, tuning.values.s, rows);
   if (row !== currentRow || col !== currentCol) setPhoto(row, col);
 }
@@ -146,6 +145,7 @@ async function init() {
   imgByFile = data.imgByFile;
   CANVAS = data.alignment.calibration_unit_px;
   fitStage();
+  photoMap = mountPhotoMap(debugPanel, rows);
   setPhoto(0, 0);
 
   const initialPermission = await probePermission(500);
