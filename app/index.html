@@ -7,6 +7,20 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<script type="module" src="main.js"></script>
+  <div id="scene">
+    <div id="polaroid">
+      <div id="photo-frame">
+        <div id="stage-clip"><div id="stage"></div></div>
+      </div>
+      <div id="caption"></div>
+    </div>
+  </div>
+  <div id="progress" aria-hidden="true"></div>
+  <button id="tilt-button" type="button" aria-label="按住傾斜">
+    <span class="dot-grid"></span>
+    <span class="label">按住傾斜</span>
+  </button>
+  <div id="debug-panel"></div>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

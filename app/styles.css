@@ -1,0 +1,163 @@
+:root {
+  --bg: #111;
+  --fg: #eee;
+  --paper: #f5f1e8;
+  --inner: #e8e1d0;
+  --accent-red: #d34d4d;
+  --transition: 300ms ease-out;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  overflow: hidden;
+}
+#scene {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+}
+#polaroid {
+  position: relative;
+  background: var(--paper);
+  padding: 22px 22px 80px 22px;
+  border-radius: 2px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
+  transform-style: preserve-3d;
+  transition: transform var(--transition), box-shadow var(--transition);
+  max-width: calc(100vh - 32px);
+  max-height: calc(100vh - 32px);
+}
+#polaroid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--shine-x, 50%) var(--shine-y, 30%),
+    rgba(255,255,255,0.55) 0%,
+    rgba(255,255,255,0.18) 18%,
+    rgba(255,255,255,0) 45%);
+  mix-blend-mode: screen;
+  opacity: var(--shine-opacity, 0.35);
+  transition: opacity var(--transition);
+}
+#photo-frame {
+  width: min(80vh, calc(100vw - 64px));
+  height: min(80vh, calc(100vw - 64px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--inner);
+  overflow: hidden;
+  position: relative;
+}
+#stage-clip {
+  position: relative;
+  overflow: hidden;
+  background: var(--inner);
+}
+#stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  background: var(--inner);
+}
+#caption {
+  margin-top: 18px;
+  font-family: "Permanent Marker", "Marker Felt", "Bradley Hand", cursive;
+  color: #2a2a2a;
+  font-size: 18px;
+  text-align: center;
+  align-self: stretch;
+  min-height: 22px;
+}
+
+/* Preload progress indicator — fades out when complete */
+#progress {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  color: #888;
+  letter-spacing: 0.05em;
+  opacity: 1;
+  transition: opacity 600ms ease;
+  z-index: 35;
+}
+#progress.done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Tilt button — hidden on desktop, shown on coarse pointer (mobile) */
+#tilt-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px dashed var(--accent-red);
+  background: rgba(211, 77, 77, 0.08);
+  color: var(--accent-red);
+  font: inherit;
+  font-size: 11px;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  -webkit-touch-callout: none;
+  user-select: none;
+  animation: breathe 2s ease-in-out infinite;
+  cursor: pointer;
+  z-index: 30;
+}
+#tilt-button.active {
+  border-style: solid;
+  background: rgba(211, 77, 77, 0.18);
+  box-shadow: 0 0 18px rgba(211, 77, 77, 0.5);
+  animation: none;
+}
+#tilt-button.denied {
+  border-color: #888;
+  color: #888;
+  background: rgba(136,136,136,0.08);
+}
+#tilt-button .dot-grid {
+  width: 16px;
+  height: 16px;
+  background: radial-gradient(circle, currentColor 1.5px, transparent 2px) 0 0/6px 6px;
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1.0; }
+}
+@media (hover: none) and (pointer: coarse) {
+  #tilt-button { display: flex; }
+}
+
+/* Debug sliders */
+#debug-panel { position: fixed; left: 12px; top: 12px; z-index: 40; }
+.debug-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #ccc;
+  width: 180px;
+}
+.debug-sliders input[type="range"] { width: 100%; }
