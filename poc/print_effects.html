@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>Print effects · static comparison</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: #181818;
+    color: #ddd;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    min-height: 100%;
+  }
+  h1 {
+    margin: 24px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #aaa;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px 24px;
+    padding: 0 24px 40px;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .label {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .label b { color: #ffaa44; font-weight: 500; }
+  .desc { color: #555; }
+
+  /* Polaroid base */
+  .polaroid {
+    position: relative;
+    padding: 18px 18px 64px 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4);
+    border-radius: 2px;
+    background: #f5f1e8;
+  }
+
+  /* Washi tape — pinned to the *photo content* top (computed from matrix in JS).
+     Narrow, near-vertical, blue/white diagonal stripes. */
+  .tape {
+    position: absolute;
+    top: 0;            /* set by JS based on matrix.ty * scale */
+    left: 50%;
+    transform-origin: 50% 50%;
+    transform: translateX(-50%) rotate(78deg);
+    width: 40px;
+    height: 14px;
+    background: repeating-linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.88)  0px,
+      rgba(255, 255, 255, 0.88)  5px,
+      rgba(110, 165, 210, 0.82)  5px,
+      rgba(110, 165, 210, 0.82)  10px
+    );
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22);
+    border-radius: 1px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  /* Slight torn / fuzzy edges on the short sides */
+  .tape::before, .tape::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 6px;
+    background: inherit;
+    opacity: 0.6;
+  }
+  .tape::before {
+    left: -4px;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000);
+            mask-image: linear-gradient(to right, transparent, #000);
+  }
+  .tape::after {
+    right: -4px;
+    -webkit-mask-image: linear-gradient(to left, transparent, #000);
+            mask-image: linear-gradient(to left, transparent, #000);
+  }
+  .frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+  }
+  .clip {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .canvas {
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: 0 0;
+  }
+  .canvas img {
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: 0 0;
+  }
+  .caption {
+    margin-top: 14px;
+    text-align: center;
+    font-family: "Permanent Marker", "Marker Felt", "Bradley Hand", cursive;
+    color: #2a2a2a;
+    font-size: 14px;
+  }
+
+  /* === Variant backgrounds === */
+  .v-cream  .frame { background: #f5f1e8; }
+  .v-white  .frame { background: #ffffff; }
+  .v-warm   .frame { background: #faf6ec; }
+  .v-cool   .frame { background: #f0f2f5; }
+  .v-aged   .frame { background: #e8e1d0; }
+
+  /* === Variant: cream + inner soft glow (feathered edge) === */
+  .v-soft .frame { background: #faf6ec; }
+  .v-soft .frame::after {
+    content: "";
+    position: absolute; inset: 0;
+    box-shadow: inset 0 0 28px 6px rgba(255,255,255,0.85);
+    pointer-events: none;
+  }
+
+  /* === Variant: cream + radial vignette mask (image fades at edges) === */
+  .v-vignette .frame { background: #faf6ec; }
+  .v-vignette .clip {
+    -webkit-mask-image: radial-gradient(ellipse 95% 95% at 50% 50%,
+      #000 55%, rgba(0,0,0,0.4) 88%, rgba(0,0,0,0) 100%);
+            mask-image: radial-gradient(ellipse 95% 95% at 50% 50%,
+      #000 55%, rgba(0,0,0,0.4) 88%, rgba(0,0,0,0) 100%);
+  }
+
+  /* === Variant: cream + grain noise overlay === */
+  .v-grain .frame { background: #faf6ec; }
+  .v-grain .frame::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.85  0 0 0 0 0.82  0 0 0 0 0.74  0 0 0 0.18 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  /* === Variant: chemical bleed (uneven warm tint at edges) === */
+  .v-bleed .frame {
+    background:
+      radial-gradient(ellipse 70% 70% at 28% 35%, rgba(255,210,160,0) 60%, rgba(220,170,110,0.35) 100%),
+      radial-gradient(ellipse 80% 60% at 78% 80%, rgba(255,200,150,0) 55%, rgba(180,130,80,0.30) 100%),
+      #faf2e2;
+  }
+</style>
+</head>
+<body>
+
+<h1>Print effects · 同一張照片，不同未印滿區效果</h1>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const PHOTO = "PXL_20260126_075102343.RAW-02.ORIGINAL.jpg";
+
+const VARIANTS = [
+  { cls: "v-cream",    title: "A · Cream（同色，現在）",      desc: "#f5f1e8 — 跟外框同色，沒印滿區看起來是「刻意留白」" },
+  { cls: "v-white",    title: "B · 純白",                      desc: "#ffffff — 像未顯影的相紙基底，乾淨但較冷" },
+  { cls: "v-warm",     title: "C · 微暖白",                    desc: "#faf6ec — 比框暖一點點，柔和過渡" },
+  { cls: "v-cool",     title: "D · 微冷白",                    desc: "#f0f2f5 — 帶青冷，化學殘留感" },
+  { cls: "v-aged",     title: "E · 泛黃淺灰",                  desc: "#e8e1d0 — 像舊相紙、褪色" },
+  { cls: "v-soft",     title: "F · 暖白 + 內側柔光",           desc: "暖白 + inset white glow，邊緣 fade，硬邊變軟" },
+  { cls: "v-vignette", title: "G · Vignette mask（軟邊）",     desc: "照片本身用 radial mask 漸消，邊緣完全融入紙" },
+  { cls: "v-grain",    title: "H · 暖白 + 紙紋",              desc: "SVG noise 疊上 multiply，模擬紙質顆粒" },
+  { cls: "v-bleed",    title: "I · 化學暈染",                  desc: "邊角不規則暖色 radial，像顯影液不均勻 / 顯影漬" },
+];
+
+const grid = document.getElementById("grid");
+
+function makePanel(v, alignItem, K) {
+  const item = document.createElement("div");
+  item.className = "item";
+
+  const label = document.createElement("div");
+  label.className = "label";
+  label.innerHTML = `<b>${v.title}</b><br><span class="desc">${v.desc}</span>`;
+  item.appendChild(label);
+
+  const polaroid = document.createElement("div");
+  polaroid.className = `polaroid ${v.cls}`;
+  const tape = document.createElement("div");
+  tape.className = "tape";
+  polaroid.appendChild(tape);
+  const frame = document.createElement("div");
+  frame.className = "frame";
+  const clip = document.createElement("div");
+  clip.className = "clip";
+  const canvas = document.createElement("div");
+  canvas.className = "canvas";
+  canvas.style.width  = K + "px";
+  canvas.style.height = K + "px";
+
+  const img = document.createElement("img");
+  img.src = "../alignment/images-resized/" + PHOTO;
+  if (alignItem && alignItem.matrix) {
+    const [[a, b, tx], [c, d, ty]] = alignItem.matrix;
+    img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
+  }
+  img.addEventListener("load", () => scaleAll(window.__PANELS__ || []));
+  canvas.appendChild(img);
+  clip.appendChild(canvas);
+  frame.appendChild(clip);
+  polaroid.appendChild(frame);
+
+  const cap = document.createElement("div");
+  cap.className = "caption";
+  cap.textContent = "2026/01/26  07:51";
+  polaroid.appendChild(cap);
+
+  item.appendChild(polaroid);
+  return { item, frame, canvas, tape, img, K, matrix: alignItem && alignItem.matrix };
+}
+
+const POLAROID_PAD_TOP = 18;
+const POLAROID_PAD_LEFT = 18;
+const TAPE_HALF_H = 7;
+
+function scaleAll(panels) {
+  panels.forEach(p => {
+    const s = p.frame.clientWidth / p.K;
+    p.canvas.style.transform = `scale(${s})`;
+    if (p.matrix && p.img.naturalWidth) {
+      const [[a, b, tx], [c, d, ty]] = p.matrix;
+      const W = p.img.naturalWidth;
+      const H = p.img.naturalHeight;
+      // Image's four corners in canvas coords
+      const corners = [
+        [tx,           ty],
+        [a*W + tx,     c*W + ty],
+        [b*H + tx,     d*H + ty],
+        [a*W + b*H+tx, c*W + d*H+ty],
+      ];
+      const xs = corners.map(c => c[0]);
+      const ys = corners.map(c => c[1]);
+      const imgTop  = Math.min(...ys);
+      const imgCx   = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const photoTopPolaroid  = POLAROID_PAD_TOP  + imgTop * s;
+      const photoCxPolaroid   = POLAROID_PAD_LEFT + imgCx  * s;
+      p.tape.style.top  = (photoTopPolaroid - TAPE_HALF_H) + "px";
+      p.tape.style.left = photoCxPolaroid + "px";
+    }
+  });
+}
+
+fetch("../alignment/aligned-all/alignments-normalized.json")
+  .then(r => r.json())
+  .then(align => {
+    const K = align.calibration_unit_px || 1568;
+    const r = align.items[PHOTO];
+    let item = null;
+    if (r && r.matrix) {
+      const [a, b, txN] = r.matrix[0];
+      const [c, d, tyN] = r.matrix[1];
+      item = { matrix: [[a, b, txN * K], [c, d, tyN * K]] };
+    }
+    const panels = VARIANTS.map(v => {
+      const p = makePanel(v, item, K);
+      grid.appendChild(p.item);
+      return p;
+    });
+    window.__PANELS__ = panels;
+    scaleAll(panels);
+    setTimeout(() => scaleAll(panels), 0);
+    setTimeout(() => scaleAll(panels), 100);
+    setTimeout(() => scaleAll(panels), 500);
+    window.addEventListener('load',   () => scaleAll(panels));
+    window.addEventListener('resize', () => scaleAll(panels));
+  });
+</script>
+</body>
+</html>
