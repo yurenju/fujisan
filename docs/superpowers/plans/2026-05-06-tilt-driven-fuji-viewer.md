@@ -48,14 +48,9 @@
 
 （CSS 檔案保持空白即可，無需註解。）
 
-- [ ] **Step 3：更新 `.gitignore`**
+- [ ] **Step 3：`.gitignore` 不需要為 app/ 增加任何規則**
 
-在檔案末端追加：
-
-```
-# App images (copied locally, served from disk; too large for git)
-app/images/
-```
+WebP 後的 `app/images/` 約 10 MB，可以直接 commit 進 git，使部署只需要單一 git pull 就能拿到全部資產。
 
 - [ ] **Step 4：在瀏覽器確認骨架可載入**
 
@@ -65,7 +60,7 @@ app/images/
 - [ ] **Step 5：Commit**
 
 ```bash
-git add app/ .gitignore
+git add app/
 git commit -m "Bootstrap app/ skeleton with empty modules"
 ```
 
@@ -203,11 +198,11 @@ if missing: print('First missing:', missing[:3])
 - [ ] **Step 6：Commit**
 
 ```bash
-git add app/data/ scripts/build_app_data.py scripts/build_app_images.py
-git commit -m "Add app data: photos.json (.webp filenames) + alignments.json + transcoding script"
+git add app/data/ app/images/ scripts/build_app_data.py scripts/build_app_images.py
+git commit -m "Add app data: photos.json + alignments.json + 125 WebP images + transcoding scripts"
 ```
 
-注意：`app/images/` 已被 gitignore，不會 commit。
+注意：`app/images/` 含 125 個 WebP 共 ~10 MB，全部一起 commit。
 
 ---
 

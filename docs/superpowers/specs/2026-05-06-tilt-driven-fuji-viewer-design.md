@@ -59,7 +59,7 @@ app/
 - 實測每張 ~85KB（JPG 原始 ~210KB），全部 125 張約 **~10 MB**，4G 約 4 秒可全部下載
 - 唯一檔名改動：`.jpg` → `.webp`（在 photos.json 與 alignments.json 都要同步改）
 
-前置條件：本機要有 `alignment/images/` 原始檔案。轉碼後的 `app/images/` 也是 gitignore 排除，部署時另外推送。
+前置條件：本機要有 `alignment/images/` 原始檔案（gitignore，不在 repo 內）。轉碼後的 `app/images/` 約 10 MB，**直接 commit 進 git**，這樣部署時只需要單一 git pull 即可拿到所有資產。
 
 ## 預載策略
 
