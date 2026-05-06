@@ -41,6 +41,7 @@ export function createPointerSource({ maxDeg = 20 } = {}) {
   window.addEventListener('mousedown', onMouseDown);
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
+  window.addEventListener('blur', onMouseUp);
 
   return {
     onTilt(fn) { tiltListeners.push(fn); },
@@ -55,6 +56,7 @@ export function createPointerSource({ maxDeg = 20 } = {}) {
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('blur', onMouseUp);
       tiltListeners.length = 0;
       pressStartListeners.length = 0;
       pressEndListeners.length = 0;
