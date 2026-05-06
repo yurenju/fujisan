@@ -52,11 +52,14 @@ app/
 
 ## 圖片資產處理
 
-來源 `alignment/images-resized/*.jpg` 全部都是 1568×1568。直接同尺寸轉碼成 **WebP quality 80**，不縮圖：
+從原始 `alignment/images/*.jpg`（4748×4748，本地檔案、gitignore 排除）出發，鏡像 `alignment/resize.py` 的處理流程：`exif_transpose` → `thumbnail(1568, LANCZOS)` → 直接存成 **WebP quality 80**。
 
-- 實測每張 ~85KB（JPG 原始 ~210KB），WebP 省了 60%
-- 全部 125 張約 **~10 MB**，4G 約 4 秒可全部下載
-- 解析度不變 → **alignments.json 與 loader 都不需要動 matrix**，唯一改動是檔名 `.jpg` → `.webp`
+- 與 `alignment/resize.py` 採用同樣的 LANCZOS 縮圖 → alignments.json 的矩陣完全不用動
+- 直接從原圖生成 WebP，避開「原 JPG → 1568 JPG → WebP」中間多一道 JPG 損失（漸層 / noise 細節較好）
+- 實測每張 ~85KB（JPG 原始 ~210KB），全部 125 張約 **~10 MB**，4G 約 4 秒可全部下載
+- 唯一檔名改動：`.jpg` → `.webp`（在 photos.json 與 alignments.json 都要同步改）
+
+前置條件：本機要有 `alignment/images/` 原始檔案。轉碼後的 `app/images/` 也是 gitignore 排除，部署時另外推送。
 
 ## 預載策略
 

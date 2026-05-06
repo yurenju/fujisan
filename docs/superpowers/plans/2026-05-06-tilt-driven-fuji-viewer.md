@@ -128,28 +128,35 @@ print(f"Wrote {out_path} with {len(rows)} rows, {total} photos")
 - [ ] **Step 3：建立 `scripts/build_app_images.py`**
 
 ```python
-"""Transcode alignment/images-resized/*.jpg to app/images/*.webp at q80.
+"""Build app/images/*.webp from the originals at alignment/images/*.jpg.
 
-Images keep their original 1568x1568 resolution so the alignment matrix
-in alignments.json remains valid. Also re-syncs any matching alignment
-entry's filename to .webp.
+Mirrors alignment/resize.py's geometry (exif_transpose + LANCZOS
+thumbnail to 1568x1568) so alignments.json's matrices remain valid,
+but encodes WebP q80 directly from the original to avoid the extra
+JPG round-trip that alignment/images-resized/ has gone through.
+
+Also rewrites alignments.json's keys from .jpg to .webp.
 """
 import json
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 
 REPO = Path(__file__).resolve().parents[1]
-SRC_DIR = REPO / "alignment" / "images-resized"
+SRC_DIR = REPO / "alignment" / "images"
 OUT_DIR = REPO / "app" / "images"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+MAX_SIDE = 1568
 QUALITY = 80
 total_bytes = 0
 count = 0
 
 for src in sorted(SRC_DIR.glob("*.jpg")):
     out = OUT_DIR / (src.stem + ".webp")
-    Image.open(src).save(out, format="WEBP", quality=QUALITY, method=6)
+    with Image.open(src) as im:
+        im = ImageOps.exif_transpose(im)
+        im.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
+        im.save(out, format="WEBP", quality=QUALITY, method=6)
     total_bytes += out.stat().st_size
     count += 1
 
