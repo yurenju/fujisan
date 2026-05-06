@@ -150,7 +150,7 @@ img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
 
 ## 第二階段：視覺展示（進行中）
 
-把對齊資料做成一個視覺/互動的數位藝術展示。**形式仍在發想，目前有一個 POC 在驗證版面結構。**
+把對齊資料做成一個視覺/互動的數位藝術展示。POC 仍在迭代，目前確定的方向：**單張 polaroid 為主視覺，pad 縮成左下浮動的小工具**。
 
 ### 資料分佈的關鍵發現
 
@@ -197,6 +197,29 @@ img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
 - 由日期排序：12/31 → 1/19 → 1/22 → 1/26，剛好就是太陽從山左肩 → 切過山頂 → 滑過右側的順序
 - 觀眾用游標（之後可改成手機陀螺儀）在這個矩形內移動，照片即時切換
 
+### 上下散張的排序：天空色相
+
+兩條散張帶不再用拍攝時間排，改用**天空顏色**的冷暖度排序。流程：
+
+1. 取每張照片的上半部（天空區域）
+2. 算上半部的平均 L\*a\*b\* 顏色
+3. 按 b 軸（黃 ↔ 藍）為主、a 軸（紅 ↔ 綠）為次序排序
+
+這是個 1D 線性投影，避開了「色相角的環形不連續」與「近中性色相不穩定」問題，做出來的是穩定的「冷天空 → 中性 → 暖橘紅」漸變。05/04 水墨那張仍強制錨在尾端。
+
+腳本：`poc/sort_rest_by_color.py`（`--apply` 寫回 `data.json`，平常輸出 `poc/rest_color_order.html` 供肉眼驗證）。
+
+### 視覺處理（已套用 POC）
+
+每張照片以**寶麗來樣式**呈現，不只是純粹的影像顯示：
+
+- **Polaroid 框**：米白底 (`#f5f1e8`)、下緣比較寬，右下方 caption 顯示日期時間（手寫風字體）
+- **照片畫布留白**：對齊後沒被照片覆蓋的角落填**泛黃淺灰** (`#e8e1d0`)，模擬「未印滿的相紙」
+- **紙膠帶**：藍/白斜條紋短條，自動釘在**可見照片內容的頂端中央**（用 alignment matrix + 圖片 natural size 即時計算位置）；當照片滿版接觸 canvas 上緣時自動隱藏
+- **浮動 pad**：原本佔半個畫面的控制 pad 縮成 260px、釘在左下、半透明黑底加 backdrop blur，當作小型導覽工具
+
+實作細節跟其他「未印滿區效果」的對比可看 `poc/print_effects.html`（A 純色 / B 純白 / ... / I 化學暈染共 9 種變體）。
+
 ### 互動長期目標
 
 手機陀螺儀傾斜手機，「找到」中心的鑽石富士那一刻——體驗本身複製了攝影者在窗前等待對齊的動作。
@@ -205,23 +228,28 @@ img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
 
 ```
 fujisan/
-├── poc/                    第二階段 POC（純滑鼠版，pad → 照片即時切換）
-│   ├── build_data.py       從 alignment/images-resized 產生 data.json
-│   ├── data.json           4 條序列 + 上下散張清單
-│   └── index.html          滑鼠移動版面，套對齊矩陣顯示照片
-├── distribution.py         探索工具：印出照片時間分佈的 ASCII 圖
+├── poc/                       第二階段 POC（純滑鼠版，pad → 照片即時切換）
+│   ├── build_data.py          從 alignment/images-resized 產生 data.json
+│   ├── data.json              4 條序列 + 上下散張清單（散張按天空色相排序）
+│   ├── sort_rest_by_color.py  天空色相排序腳本（--apply 寫回 data.json）
+│   ├── index.html             ★ 主 POC：polaroid + 紙膠帶 + 浮動 pad
+│   └── print_effects.html     未印滿區的 9 種視覺處理對比
+├── distribution.py            探索工具：印出照片時間分佈的 ASCII 圖
 └── ...（alignment/ 同前）
 ```
 
 ### POC 怎麼跑
 
 ```bash
-python poc/build_data.py        # 重建 data.json（照片或門檻變動時才需）
-python -m http.server 8765      # 從專案根目錄
+python poc/build_data.py                  # 重建 data.json（照片或門檻變動時才需）
+python poc/sort_rest_by_color.py --apply  # 重排上下散張的色相順序（可選）
+python -m http.server 8765                # 從專案根目錄
 # 開 http://localhost:8765/poc/index.html
 ```
 
-左邊矩形是控制 pad，右邊是當下的照片（套對齊矩陣，富士山位置固定）。游標在矩形內移動 → 照片切換。下方 info 條顯示目前落在哪一格（例如 `row3[19/30] 2026-01-22`）。
+中央是當前照片（polaroid 框 + 紙膠帶），左下角浮動 pad 是控制器。游標在 pad 內移動 → 照片切換 + 紙膠帶位置依照片 alignment 即時調整。pad 下方 info 條顯示目前落在哪一格（例如 `row3[19/30] 2026-01-22`），polaroid 下方 caption 顯示日期時間。
+
+對比未印滿區的視覺處理可開 http://localhost:8765/poc/print_effects.html （9 種變體並排）。
 
 ### 探索工具：照片分佈
 
