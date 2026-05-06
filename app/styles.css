@@ -169,3 +169,58 @@ img {
   width: 180px;
 }
 .debug-sliders input[type="range"] { width: 100%; }
+
+/* Tilt scope — debug visualization of current (db, dg) vs sensitivity bounds */
+.tilt-scope {
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #ccc;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.scope-box {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border: 1px dashed rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.02);
+  overflow: visible;
+}
+.scope-cross {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, transparent calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% - 0.5px), rgba(255,255,255,0.15) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+.scope-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: #4dabd3;
+  box-shadow: 0 0 8px rgba(77, 171, 211, 0.6);
+  transition: transform 60ms linear, background 200ms ease, box-shadow 200ms ease;
+  pointer-events: none;
+}
+.scope-dot.clamped {
+  background: var(--accent-red);
+  box-shadow: 0 0 10px rgba(211, 77, 77, 0.7);
+}
+.scope-readout {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 0.05em;
+}
