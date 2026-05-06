@@ -6,7 +6,7 @@
 
 **Architecture:** 純前端靜態站，純 ES modules，無建置流程。Repo 完全不引入 Node tooling — 用既有的 `python -m http.server` 開發。模組拆成 loader / gyro / pointer / mapping / polaroid / debug，由 main.js 串接。每個 task 結尾用瀏覽器（透過 Claude Preview MCP）做行為驗收。
 
-**Tech Stack:** Vanilla JS (ES modules)、CSS、Python 3（資料前處理腳本）。
+**Tech Stack:** Vanilla JS (ES modules)、CSS、Python 3 + Pillow（資料 / 圖片前處理腳本）。
 
 **驗收方式（取代 TDD）：** 每個 task 結束前在瀏覽器執行具體的行為檢查（按下、傾斜到某個方向、觀察 caption 數字變化等），用 `mcp__Claude_Preview__preview_*` 工具確認 console 沒錯誤、DOM/畫面符合預期。
 
@@ -28,7 +28,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Fujisan</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -71,37 +71,45 @@ git commit -m "Bootstrap app/ skeleton with empty modules"
 
 ---
 
-## Task 2：產生 `photos.json`、複製對齊資料與照片
+## Task 2：產生 `photos.json`、轉碼 WebP、複製對齊資料
 
 **Files:**
 - Create: `scripts/build_app_data.py`
-- Create: `app/data/photos.json`
-- Create: `app/data/alignments.json`
-- Create: `app/images/`（複製 125 張）
+- Create: `scripts/build_app_images.py`
+- Create: `app/data/photos.json`、`app/data/alignments.json`
+- Create: `app/images/`（125 張 WebP）
 
 - [ ] **Step 1：建立 `scripts/build_app_data.py`**
 
 ```python
-"""Build app/data/photos.json from poc/data.json by flattening into 6 rows."""
+"""Build app/data/photos.json from poc/data.json by flattening into 6 rows.
+
+Filenames in the output are switched from .jpg to .webp so the app loads
+the transcoded assets.
+"""
 import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 src = json.loads((REPO / "poc" / "data.json").read_text(encoding="utf-8"))
 
+def to_webp(name: str) -> str:
+    return name.rsplit(".", 1)[0] + ".webp"
+
 rows = [
-    {"id": "top-rest", "label": "早上的散張", "photos": src["topRest"]},
+    {"id": "top-rest", "label": "早上的散張",
+     "photos": [to_webp(p) for p in src["topRest"]]},
 ]
 for i, seq in enumerate(src["sequences"], start=1):
     rows.append({
         "id": f"seq-{i}",
         "label": seq["date"],
-        "photos": seq["photos"],
+        "photos": [to_webp(p) for p in seq["photos"]],
     })
 rows.append({
     "id": "bottom-rest",
     "label": "其他散張",
-    "photos": src["bottomRest"],
+    "photos": [to_webp(p) for p in src["bottomRest"]],
 })
 
 out_path = REPO / "app" / "data" / "photos.json"
@@ -117,19 +125,56 @@ print(f"Wrote {out_path} with {len(rows)} rows, {total} photos")
 執行：`python scripts/build_app_data.py`
 預期輸出：`Wrote .../app/data/photos.json with 6 rows, 125 photos`
 
-- [ ] **Step 3：複製 alignments.json**
+- [ ] **Step 3：建立 `scripts/build_app_images.py`**
 
-執行：`cp alignment/aligned-all/alignments-normalized.json app/data/alignments.json`
-預期：檔案大小約 68K。
+```python
+"""Transcode alignment/images-resized/*.jpg to app/images/*.webp at q80.
 
-- [ ] **Step 4：複製 125 張照片**
+Images keep their original 1568x1568 resolution so the alignment matrix
+in alignments.json remains valid. Also re-syncs any matching alignment
+entry's filename to .webp.
+"""
+import json
+from pathlib import Path
+from PIL import Image
 
-```bash
-mkdir -p app/images
-cp alignment/images-resized/*.jpg app/images/
+REPO = Path(__file__).resolve().parents[1]
+SRC_DIR = REPO / "alignment" / "images-resized"
+OUT_DIR = REPO / "app" / "images"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+QUALITY = 80
+total_bytes = 0
+count = 0
+
+for src in sorted(SRC_DIR.glob("*.jpg")):
+    out = OUT_DIR / (src.stem + ".webp")
+    Image.open(src).save(out, format="WEBP", quality=QUALITY, method=6)
+    total_bytes += out.stat().st_size
+    count += 1
+
+print(f"Wrote {count} WebPs, total {total_bytes/1024/1024:.1f} MB, "
+      f"avg {total_bytes/count/1024:.1f} KB")
+
+# Rewrite alignments.json keys from .jpg to .webp.
+src_align = json.loads((REPO / "alignment" / "aligned-all"
+                        / "alignments-normalized.json").read_text(encoding="utf-8"))
+new_items = {}
+for k, v in src_align.get("items", {}).items():
+    new_key = k.rsplit(".", 1)[0] + ".webp" if k.lower().endswith(".jpg") else k
+    new_items[new_key] = v
+src_align["items"] = new_items
+
+out_align = REPO / "app" / "data" / "alignments.json"
+out_align.parent.mkdir(parents=True, exist_ok=True)
+out_align.write_text(json.dumps(src_align, ensure_ascii=False), encoding="utf-8")
+print(f"Wrote {out_align}")
 ```
 
-預期：`app/images/` 含 125 個 `.jpg` 檔。
+- [ ] **Step 4：執行轉碼腳本**
+
+執行：`python scripts/build_app_images.py`
+預期輸出：類似 `Wrote 125 WebPs, total 10.4 MB, avg 85.2 KB`
 
 - [ ] **Step 5：驗證每張被引用的照片都存在**
 
@@ -151,8 +196,8 @@ if missing: print('First missing:', missing[:3])
 - [ ] **Step 6：Commit**
 
 ```bash
-git add app/data/ scripts/build_app_data.py
-git commit -m "Add app data: flattened photos.json + alignments.json"
+git add app/data/ scripts/build_app_data.py scripts/build_app_images.py
+git commit -m "Add app data: photos.json (.webp filenames) + alignments.json + transcoding script"
 ```
 
 注意：`app/images/` 已被 gitignore，不會 commit。
@@ -389,7 +434,7 @@ git commit -m "Add pointer.js: mouse-position tilt simulation with press lifecyc
 
 ---
 
-## Task 6：實作 `loader.js`
+## Task 6：實作 `loader.js`（含優先載入 + 進度回呼）
 
 **Files:**
 - Modify: `app/src/loader.js`
@@ -398,10 +443,19 @@ git commit -m "Add pointer.js: mouse-position tilt simulation with press lifecyc
 
 ```js
 // Fetches photos.json + alignments.json, denormalizes alignment matrices,
-// preloads every referenced image into hidden <img> elements attached to
-// the stage. Returns { rows, alignment, imgByFile } for the rest of the app.
+// creates a hidden <img> per referenced file with its alignment transform.
+// The first photo is fetched synchronously so the UI has something to show
+// before returning; the rest are loaded by N parallel background workers
+// and emit onProgress(loaded, total) per completion.
 
-export async function loadAll({ stage, photosUrl = 'data/photos.json', alignmentsUrl = 'data/alignments.json' } = {}) {
+const CONCURRENCY = 6;
+
+export async function loadAll({
+  stage,
+  photosUrl = 'data/photos.json',
+  alignmentsUrl = 'data/alignments.json',
+  onProgress,
+} = {}) {
   const [photos, alignmentsRaw] = await Promise.all([
     fetch(photosUrl).then(r => r.json()),
     fetch(alignmentsUrl).then(r => r.json()),
@@ -417,13 +471,12 @@ export async function loadAll({ stage, photosUrl = 'data/photos.json', alignment
   }
   const alignment = { calibration_unit_px: K, items };
 
-  const referenced = new Set();
-  for (const row of photos.rows) for (const f of row.photos) referenced.add(f);
+  const ordered = [];
+  for (const row of photos.rows) for (const f of row.photos) ordered.push(f);
 
   const imgByFile = {};
-  for (const file of referenced) {
+  for (const file of ordered) {
     const img = document.createElement('img');
-    img.src = `images/${file}`;
     img.style.display = 'none';
     img.style.position = 'absolute';
     img.style.top = '0';
@@ -439,7 +492,37 @@ export async function loadAll({ stage, photosUrl = 'data/photos.json', alignment
     imgByFile[file] = img;
   }
 
+  // Synchronously load the first photo so the caller can show it immediately.
+  let loaded = 0;
+  const total = ordered.length;
+  await assignSrc(imgByFile[ordered[0]], `images/${ordered[0]}`);
+  loaded++;
+  onProgress?.(loaded, total);
+
+  // Background workers fetch the rest in row-major order.
+  const queue = ordered.slice(1);
+  const startWorker = async () => {
+    while (queue.length) {
+      const file = queue.shift();
+      if (!file) return;
+      try { await assignSrc(imgByFile[file], `images/${file}`); }
+      catch { /* swallow — img.onerror still resolves */ }
+      loaded++;
+      onProgress?.(loaded, total);
+    }
+  };
+  // Fire and forget; do not block loadAll's caller.
+  Promise.all(Array.from({ length: CONCURRENCY }, startWorker));
+
   return { rows: photos.rows, alignment, imgByFile };
+}
+
+function assignSrc(img, url) {
+  return new Promise((resolve) => {
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = url;
+  });
 }
 
 export function showPhoto(imgByFile, currentFile, nextFile) {
@@ -453,7 +536,7 @@ export function showPhoto(imgByFile, currentFile, nextFile) {
 
 ```bash
 git add app/src/loader.js
-git commit -m "Add loader.js: fetch + denormalize + preload images"
+git commit -m "Add loader.js: prioritized first-photo load + parallel background preload + progress callback"
 ```
 
 ---
@@ -598,6 +681,7 @@ git commit -m "Add debug.js: URL-hash-backed sensitivity/damping/highlight tunin
       <div id="caption"></div>
     </div>
   </div>
+  <div id="progress" aria-hidden="true"></div>
   <button id="tilt-button" type="button" aria-label="按住傾斜">
     <span class="dot-grid"></span>
     <span class="label">按住傾斜</span>
@@ -693,6 +777,24 @@ html, body {
   min-height: 22px;
 }
 
+/* Preload progress indicator — fades out when complete */
+#progress {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  color: #888;
+  letter-spacing: 0.05em;
+  opacity: 1;
+  transition: opacity 600ms ease;
+  z-index: 35;
+}
+#progress.done {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Tilt button — hidden on desktop, shown on coarse pointer (mobile) */
 #tilt-button {
   position: fixed;
@@ -775,6 +877,7 @@ const stageClip = document.getElementById('stage-clip');
 const caption = document.getElementById('caption');
 const tiltBtn = document.getElementById('tilt-button');
 const debugPanel = document.getElementById('debug-panel');
+const progress = document.getElementById('progress');
 
 const tuning = createTuning({ defaults: { s: 20, d: 0.4, h: 0.5 } });
 mountSliders(debugPanel, tuning, { s: [10, 40], d: [0, 1], h: [0, 1] });
@@ -865,8 +968,13 @@ function wireDesktop(source) {
   source.onTilt(onTiltUpdate);
 }
 
+function onLoadProgress(loaded, total) {
+  progress.textContent = `${loaded} / ${total}`;
+  if (loaded === total) progress.classList.add('done');
+}
+
 async function init() {
-  const data = await loadAll({ stage });
+  const data = await loadAll({ stage, onProgress: onLoadProgress });
   rows = data.rows;
   imgByFile = data.imgByFile;
   CANVAS = data.alignment.calibration_unit_px;
@@ -1010,6 +1118,15 @@ End-to-end smoke test。沒有 fix 就不 commit。
 `preview_resize` width=1400 height=900。逐項用 `preview_eval` + `preview_screenshot` 確認：
 
 - [ ] 進入頁面後 5 秒內看到 polaroid（`preview_snapshot` 找到 polaroid 元素 + 至少一張可見的 img）
+- [ ] 右上角 `#progress` 出現 `1/125` 之類的數字，過幾秒後變成 `125/125` 然後淡出
+- [ ] `preview_eval` 確認 progress 最終狀態：
+
+```js
+({ text: document.getElementById('progress').textContent, done: document.getElementById('progress').classList.contains('done') })
+```
+
+預期：text 是 `125 / 125`、done 是 true。
+
 - [ ] 按住 + 向右拖：caption 變化、transform 非 identity
 - [ ] 放開：transform 回到 identity（CSS transition 平滑）、caption 不變
 - [ ] 再次按下並向同方向拖：caption 從當下繼續往同方向變化（不是跳回原始位置）
@@ -1031,7 +1148,7 @@ End-to-end smoke test。沒有 fix 就不 commit。
 - [ ] **Step 3：Network / Console 全綠**
 
 - [ ] `preview_console_logs`：沒有錯誤
-- [ ] `preview_network`：`photos.json`、`alignments.json`、125 張 `images/*.jpg` 全部 200
+- [ ] `preview_network`：`photos.json`、`alignments.json`、125 張 `images/*.webp` 全部 200
 
 - [ ] **Step 4：截圖留存**
 

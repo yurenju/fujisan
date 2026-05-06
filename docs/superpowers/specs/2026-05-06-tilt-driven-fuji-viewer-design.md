@@ -43,12 +43,32 @@ app/
     polaroid.js           # 3D transform + specular highlight + shadow
     debug.js              # tunable sensitivity slider
   data/
-    photos.json           # 6 rows × variable columns
-    alignments.json       # copy of alignment/aligned-all/alignments-normalized.json
-  images/                 # 125 referenced photos copied from alignment/images-resized/
+    photos.json           # 6 rows × variable columns（檔名為 .webp）
+    alignments.json       # copy of alignment/aligned-all/alignments-normalized.json（矩陣不變）
+  images/                 # 125 張 1568×1568 WebP（從 alignment/images-resized/ 同尺寸轉碼）
 ```
 
 `app/` 是自給自足的：執行階段不會引用 `alignment/` 或 `poc/` 下的任何檔案。
+
+## 圖片資產處理
+
+來源 `alignment/images-resized/*.jpg` 全部都是 1568×1568。直接同尺寸轉碼成 **WebP quality 80**，不縮圖：
+
+- 實測每張 ~85KB（JPG 原始 ~210KB），WebP 省了 60%
+- 全部 125 張約 **~10 MB**，4G 約 4 秒可全部下載
+- 解析度不變 → **alignments.json 與 loader 都不需要動 matrix**，唯一改動是檔名 `.jpg` → `.webp`
+
+## 預載策略
+
+- 進場時 `<img>` 全部建立並 attach 到 stage（`display:none`），但 src 不一次全發
+- **先 fetch row 0 col 0 那一張**，等它 loaded 後才 render polaroid（防止使用者看到空畫面）
+- 之後 6 個並行 worker 依序 fetch 剩下 124 張，順序按 row 0 → row 5 內 left-to-right
+- UI 上一個小 progress indicator（caption 行末小字 `47 / 125`）顯示載入進度，全部載完後淡出
+- 進度未滿時使用者仍可互動 — 切到尚未載入的照片時，`<img>` 顯示瀏覽器預設的「待 src」狀態（透明），polaroid 會看到底色而非照片，但這個視窗很短
+
+## 行動裝置 viewport
+
+`<meta name="viewport">` 加上 `maximum-scale=1, user-scalable=no`，避免使用者意外 pinch zoom 把 polaroid 放大、破壞 3D transform 的 perspective。
 
 ## 資料 Schema
 
