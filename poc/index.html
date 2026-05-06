@@ -111,6 +111,7 @@
   }
   /* Polaroid: white frame, thicker bottom margin (like a real instant photo) */
   #polaroid {
+    position: relative;
     background: #f5f1e8;
     padding: 22px 22px 80px 22px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0,0,0,0.4);
@@ -128,8 +129,30 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #000;
+    background: #e8e1d0;
     overflow: hidden;
+  }
+  /* Washi tape — pinned to the visible photo's top-center */
+  #tape {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform-origin: 50% 50%;
+    transform: translateX(-50%) rotate(78deg);
+    width: 60px;
+    height: 25px;
+    background: repeating-linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.88)  0px,
+      rgba(255, 255, 255, 0.88)  5px,
+      rgba(110, 165, 210, 0.82)  5px,
+      rgba(110, 165, 210, 0.82)  10px
+    );
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22);
+    border-radius: 1px;
+    pointer-events: none;
+    z-index: 5;
+    visibility: hidden;
   }
   #caption {
     margin-top: 18px;
@@ -145,14 +168,14 @@
   #stage-clip {
     position: relative;
     overflow: hidden;
-    background: #000;
+    background: #e8e1d0;
   }
   #stage {
     position: absolute;
     top: 0;
     left: 0;
     transform-origin: 0 0;
-    background: #000;
+    background: #e8e1d0;
   }
   #stage img {
     position: absolute;
@@ -179,6 +202,7 @@
     <div id="info">load…</div>
   </div>
   <div id="polaroid">
+    <div id="tape"></div>
     <div id="photo-frame">
       <div id="stage-clip"><div id="stage"></div></div>
     </div>
@@ -210,8 +234,51 @@ function fitStage() {
   stage.style.width = CANVAS_W + "px";
   stage.style.height = CANVAS_H + "px";
   stage.style.transform = `scale(${s})`;
+  if (stageImgFile) positionTape(stageImgFile);
 }
 window.addEventListener("resize", fitStage);
+
+const POLAROID_PAD = 22;     // matches CSS padding-top / padding-left
+const TAPE_HALF_H  = 12.5;   // half of #tape height
+
+function positionTape(file) {
+  const tape = document.getElementById("tape");
+  if (!tape) return;
+  const item = ALIGN_ITEMS[file];
+  const img = IMG_BY_FILE[file];
+  if (!item || !item.matrix || !img || !img.naturalWidth) {
+    tape.style.visibility = "hidden";
+    return;
+  }
+  const [[a, b, tx], [c, d, ty]] = item.matrix;
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const corners = [
+    [tx,           ty],
+    [a*W + tx,     c*W + ty],
+    [b*H + tx,     d*H + ty],
+    [a*W + b*H+tx, c*W + d*H+ty],
+  ];
+  const xs = corners.map(p => p[0]);
+  const ys = corners.map(p => p[1]);
+  // Clamp to canvas bounds — when the source image extends past the canvas,
+  // the *visible* photo edge sits at the canvas edge, not at the geometric one.
+  const imgTop  = Math.max(0,        Math.min(...ys));
+  const imgLeft = Math.max(0,        Math.min(...xs));
+  const imgRight = Math.min(CANVAS_W, Math.max(...xs));
+  const imgCx   = (imgLeft + imgRight) / 2;
+  const s = photoFrame.clientWidth / CANVAS_W;
+
+  // Only show tape when the photo doesn't reach the canvas top — otherwise
+  // there's no cream margin for it to "stick" onto.
+  const TAPE_MIN_TOP_MARGIN = CANVAS_W * 0.04;  // ~63 px in canvas coords
+  if (imgTop < TAPE_MIN_TOP_MARGIN) {
+    tape.style.visibility = "hidden";
+    return;
+  }
+  tape.style.visibility = "visible";
+  tape.style.top  = (POLAROID_PAD + imgTop * s - TAPE_HALF_H) + "px";
+  tape.style.left = (POLAROID_PAD + imgCx  * s) + "px";
+}
 
 function preloadAll(allFiles) {
   for (const file of allFiles) {
@@ -237,6 +304,7 @@ function showPhoto(file) {
   const img = IMG_BY_FILE[file];
   if (img) img.style.display = "";
   stageImgFile = file;
+  positionTape(file);
 }
 
 function build(data) {
