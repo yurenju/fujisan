@@ -670,7 +670,7 @@ git commit -m "Add debug.js: URL-hash-backed sensitivity/damping/highlight tunin
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Fujisan</title>
 <link rel="stylesheet" href="styles.css">
 </head>
