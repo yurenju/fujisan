@@ -3,7 +3,7 @@ import { probePermission, ensurePermission, createGyroSource } from './src/gyro.
 import { createPointerSource } from './src/pointer.js';
 import { tiltToIndex } from './src/mapping.js';
 import { applyTiltVisual } from './src/polaroid.js';
-import { createTuning, mountSliders, mountPhotoMap } from './src/debug.js';
+import { createTuning, mountSliders, mountPhotoMap, mountToggle } from './src/debug.js';
 
 const polaroid = document.getElementById('polaroid');
 const photoFrame = document.getElementById('photo-frame');
@@ -14,7 +14,8 @@ const tiltBtn = document.getElementById('tilt-button');
 const debugPanel = document.getElementById('debug-panel');
 const progress = document.getElementById('progress');
 
-const tuning = createTuning({ defaults: { sv: 25, sh: 15, d: 0.4, h: 0.5, inv: 1 } });
+const tuning = createTuning({ defaults: { sv: 25, sh: 15, d: 0.4, h: 0.5, inv: 1, hide: 0 } });
+mountToggle(debugPanel, tuning);
 mountSliders(debugPanel, tuning, [
   { key: 'sv',  label: 'sensitivity ↕', min: 10, max: 40, step: 0.5, unit: '°' },
   { key: 'sh',  label: 'sensitivity ↔', min: 10, max: 40, step: 0.5, unit: '°' },

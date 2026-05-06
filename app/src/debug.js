@@ -31,6 +31,24 @@ export function createTuning({ defaults }) {
   return { values, set };
 }
 
+// Toggle button: collapses sibling debug content when active. State is
+// stored in tuning under `hide` (0/1) so it persists in the URL hash.
+export function mountToggle(container, tuning) {
+  const btn = document.createElement('button');
+  btn.className = 'debug-toggle';
+  btn.type = 'button';
+  btn.textContent = '≡';
+  btn.title = 'toggle debug panel';
+  const apply = () => container.classList.toggle('collapsed', !!tuning.values.hide);
+  btn.addEventListener('click', () => {
+    tuning.set('hide', tuning.values.hide ? 0 : 1);
+    apply();
+  });
+  apply();
+  container.appendChild(btn);
+  return btn;
+}
+
 // configs: array of { key, label, min, max, step, unit? }
 // Each entry renders one labelled slider bound to tuning.set(key, value).
 export function mountSliders(container, tuning, configs) {
