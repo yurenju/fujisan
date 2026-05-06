@@ -66,9 +66,10 @@ function startPress(source) {
   tiltBtn?.classList.add('active');
 }
 
-function endPress() {
+function endPress(source) {
   applyTiltVisual(polaroid, { db: 0, dg: 0 }, { tiltDamping: tuning.values.d, highlightIntensity: tuning.values.h });
   tiltBtn?.classList.remove('active');
+  source?.endCalibrated?.();
 }
 
 function onTiltUpdate(ev) {
@@ -91,7 +92,7 @@ function wireMobile(source, initialPermission) {
     }
     startPress(source);
   };
-  const handlerUp = () => endPress();
+  const handlerUp = () => endPress(source);
   tiltBtn.addEventListener('touchstart', handlerDown, { passive: false });
   tiltBtn.addEventListener('touchend', handlerUp);
   tiltBtn.addEventListener('touchcancel', handlerUp);
@@ -121,13 +122,13 @@ function wireTouchDragFallback() {
     fakeMouse('mouseup', { clientX: 0, clientY: 0 });
   });
   fb.onPressStart(() => startPress(fb));
-  fb.onPressEnd(() => endPress());
+  fb.onPressEnd(() => endPress(fb));
   fb.onTilt(onTiltUpdate);
 }
 
 function wireDesktop(source) {
   source.onPressStart(() => startPress(source));
-  source.onPressEnd(() => endPress());
+  source.onPressEnd(() => endPress(source));
   source.onTilt(onTiltUpdate);
 }
 

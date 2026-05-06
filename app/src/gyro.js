@@ -62,6 +62,9 @@ export function createGyroSource({ alpha = 0.18 } = {}) {
       neutralGamma = smoothedGamma;
       calibrated = true;
     },
+    endCalibrated() {
+      calibrated = false;
+    },
     stop() {
       calibrated = false;
       window.removeEventListener('deviceorientation', handler);
