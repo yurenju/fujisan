@@ -77,9 +77,15 @@ export async function loadAll({
 
 function assignSrc(img, url) {
   return new Promise((resolve) => {
-    img.onload = () => resolve();
     img.onerror = () => resolve();
     img.src = url;
+    // Use decode() instead of onload — onload fires after fetch + parse
+    // but iOS Safari defers the bitmap decode for display:none images
+    // until they first become visible, producing a 1-2 frame flash on
+    // the first time the photo is shown. decode() waits until the
+    // bitmap is actually ready, so preload progress reflects readiness
+    // and the first switch is flicker-free.
+    img.decode().then(resolve).catch(resolve);
   });
 }
 
