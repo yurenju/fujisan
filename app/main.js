@@ -21,15 +21,20 @@ const TAPE_HALF_H = 12.5;   // half of #tape height (25 / 2)
 const tuning = createTuning({
   defaults: { sv: 20, sh: 2, dz: 2, d: 0.4, h: 0.5, inv: 1, hide: 0 },
 });
-mountToggle(debugPanel, tuning);
-mountSliders(debugPanel, tuning, [
-  { key: 'sv',  label: 'deg / (row/sec)',   min: 10, max: 40, step: 0.5, unit: '°' },
-  { key: 'sh',  label: 'deg / (photo/sec)', min: 5,  max: 30, step: 0.5, unit: '°' },
-  { key: 'dz',  label: 'deadzone',          min: 0,  max: 5,  step: 0.1, unit: '°' },
-  { key: 'd',   label: 'tilt damping',      min: 0,  max: 1,  step: 0.05 },
-  { key: 'h',   label: 'highlight',         min: 0,  max: 1,  step: 0.05 },
-  { key: 'inv', label: 'invert',            min: 0,  max: 1,  step: 1 },
-]);
+// Debug panel (toggle + sliders) is opt-in via `?debug=1` so the released
+// UI stays clean. URL hash still carries tunings for sharing presets.
+const debugEnabled = new URLSearchParams(location.search).get('debug') === '1';
+if (debugEnabled) {
+  mountToggle(debugPanel, tuning);
+  mountSliders(debugPanel, tuning, [
+    { key: 'sv',  label: 'deg / (row/sec)',   min: 10, max: 40, step: 0.5, unit: '°' },
+    { key: 'sh',  label: 'deg / (photo/sec)', min: 5,  max: 30, step: 0.5, unit: '°' },
+    { key: 'dz',  label: 'deadzone',          min: 0,  max: 5,  step: 0.1, unit: '°' },
+    { key: 'd',   label: 'tilt damping',      min: 0,  max: 1,  step: 0.05 },
+    { key: 'h',   label: 'highlight',         min: 0,  max: 1,  step: 0.05 },
+    { key: 'inv', label: 'invert',            min: 0,  max: 1,  step: 1 },
+  ]);
+}
 let photoMap = null;
 
 let CANVAS = 1568;
