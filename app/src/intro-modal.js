@@ -22,6 +22,15 @@ export function showIntroModal({ debug = false } = {}) {
   const device = detectDevice(debug);
   dialog.dataset.device = device;
 
+  if (device === 'desktop' || device === 'desktop-debug') {
+    const container = document.getElementById('intro-qrcode');
+    const qr = qrcode(0, 'M');
+    qr.addData(location.href);
+    qr.make();
+    // cellSize=6, margin=2 — tune in styling task if needed
+    container.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  }
+
   // Block Esc / cancel on plain desktop — there is no exit.
   dialog.addEventListener('cancel', (e) => {
     if (device === 'desktop') e.preventDefault();
