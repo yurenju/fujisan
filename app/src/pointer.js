@@ -47,10 +47,19 @@ export function createPointerSource({ maxV = 20, maxH = 20 } = {}) {
     onTilt(fn) { tiltListeners.push(fn); },
     onPressStart(fn) { pressStartListeners.push(fn); },
     onPressEnd(fn) { pressEndListeners.push(fn); },
+    latest() {
+      if (!calibrated) return { db: 0, dg: 0 };
+      const dg = ((lastX - neutralX) / window.innerWidth)  * maxH;
+      const db = ((lastY - neutralY) / window.innerHeight) * maxV;
+      return { db, dg };
+    },
     startCalibrated() {
       neutralX = lastX;
       neutralY = lastY;
       calibrated = true;
+    },
+    endCalibrated() {
+      calibrated = false;
     },
     stop() {
       window.removeEventListener('mousedown', onMouseDown);
