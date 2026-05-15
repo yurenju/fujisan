@@ -474,6 +474,22 @@ img {
 #intro-modal:not([data-device="ios"]) .intro-ios-only { display: none; }
 #intro-modal:not([data-device="desktop-debug"]) .intro-debug-exit { display: none; }
 
+/* ── permission-denied error (iOS) ── */
+#intro-modal .intro-device-mobile .intro-permission-error {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(180, 70, 50, 0.07);
+  border-left: 3px solid rgba(180, 70, 50, 0.45);
+  border-left-style: solid;
+  color: #6b2c1f;
+  font-size: 14px;
+  line-height: 1.6;
+}
+#intro-start-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ── mobile viewport adjustments ── */
 @media (max-width: 480px) {
   #intro-modal .intro-header {
