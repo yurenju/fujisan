@@ -11,6 +11,7 @@ export async function loadAll({
   photosUrl = 'data/photos.json',
   alignmentsUrl = 'data/alignments.json',
   onProgress,
+  onPhotoLoaded,
 } = {}) {
   const [photos, alignmentsRaw] = await Promise.all([
     fetch(photosUrl).then(r => r.json()),
@@ -65,6 +66,7 @@ export async function loadAll({
       catch { /* swallow — img.onerror still resolves */ }
       loaded++;
       onProgress?.(loaded, total);
+      onPhotoLoaded?.(file);
     }
   };
   // Fire and forget; do not block loadAll's caller.

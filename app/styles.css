@@ -78,6 +78,30 @@ img {
   transform-origin: 0 0;
   background: var(--inner);
 }
+/* Washi tape — pinned to the visible photo's top-center. Hidden when
+   the photo fills the canvas top (no cream margin for it to stick onto).
+   Position is set by JS in main.js (positionTape). */
+#tape {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform-origin: 50% 50%;
+  transform: translateX(-50%) rotate(78deg);
+  width: 60px;
+  height: 25px;
+  background: repeating-linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.88)  0px,
+    rgba(255, 255, 255, 0.88)  5px,
+    rgba(110, 165, 210, 0.82)  5px,
+    rgba(110, 165, 210, 0.82)  10px
+  );
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 5;
+  visibility: hidden;
+}
 #caption {
   margin-top: 18px;
   font-family: "Permanent Marker", "Marker Felt", "Bradley Hand", cursive;
@@ -188,8 +212,7 @@ img {
 /* Photo map — miniature film contact sheet pinned to the polaroid's
    bottom-left margin. Each row is a strip of negatives: dark film base
    with sprocket-hole bands top and bottom, individual frames inside.
-   The currently displayed photo is the brightly exposed frame. The whole
-   strip stack sits inside a translucent archival sleeve. */
+   The currently displayed photo is the brightly exposed frame. */
 .photo-map {
   position: absolute;
   left: 12px;
@@ -201,6 +224,8 @@ img {
   padding: 5px 4px 5px 9px;
   pointer-events: none;
   z-index: 3;
+  /* Translucent archival sleeve: faint cool-white plastic with a subtle
+     diagonal sheen, hairline edge, and soft drop shadow off the polaroid. */
   background:
     linear-gradient(
       135deg,
@@ -241,7 +266,8 @@ img {
   background: #3a2417;
   padding: 2px 2px;
 }
-/* Sprocket-hole bands across the top and bottom of each strip. */
+/* Sprocket-hole bands: tiny pale rectangles repeated across the top and
+   bottom edges of each strip. */
 .pm-row::before,
 .pm-row::after {
   content: "";
