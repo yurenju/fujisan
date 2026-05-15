@@ -34,11 +34,7 @@ export async function loadAll({
   const imgByFile = {};
   for (const file of ordered) {
     const img = document.createElement('img');
-    // visibility:hidden (not display:none) keeps every img in the render
-    // tree so iOS Safari doesn't aggressively evict decoded bitmaps from
-    // detached images. Combined with decode() in assignSrc, this makes
-    // first-time photo switches flicker-free on iOS.
-    img.style.visibility = 'hidden';
+    img.style.display = 'none';
     img.style.position = 'absolute';
     img.style.top = '0';
     img.style.left = '0';
@@ -94,7 +90,7 @@ function assignSrc(img, url) {
 }
 
 export function showPhoto(imgByFile, currentFile, nextFile) {
-  if (currentFile && imgByFile[currentFile]) imgByFile[currentFile].style.visibility = 'hidden';
-  if (imgByFile[nextFile]) imgByFile[nextFile].style.visibility = 'visible';
+  if (currentFile && imgByFile[currentFile]) imgByFile[currentFile].style.display = 'none';
+  if (imgByFile[nextFile]) imgByFile[nextFile].style.display = '';
   return nextFile;
 }
