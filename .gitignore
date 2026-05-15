@@ -18,5 +18,9 @@ __pycache__/
 # Superpowers brainstorm session artifacts
 .superpowers/
 
+# Claude Code local state
+.claude/worktrees/
+.claude/settings.local.json
+
 # Regenerable previews
 poc/rest_color_order.html
