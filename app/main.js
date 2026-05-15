@@ -1,5 +1,5 @@
 import { loadAll, showPhoto } from './src/loader.js';
-import { probePermission, ensurePermission, createGyroSource } from './src/gyro.js';
+import { createGyroSource } from './src/gyro.js';
 import { createPointerSource } from './src/pointer.js';
 import { tiltToVelocity, advance } from './src/mapping.js';
 import { applyTiltVisual } from './src/polaroid.js';
@@ -190,67 +190,17 @@ function onTiltVisual(ev) {
   applyTiltVisual(polaroid, ev, { tiltDamping: tuning.values.d, highlightIntensity: tuning.values.h });
 }
 
-function wireMobile(source, initialPermission) {
-  let permission = initialPermission;
-
-  // iOS Safari requires DeviceOrientationEvent.requestPermission() to be
-  // called from a 'click' (or 'touchend')-level user gesture; calling it
-  // from 'touchstart' is rejected as not-a-gesture. So request on click
-  // (which fires on tap completion), and only run the press lifecycle on
-  // touchstart/touchend after permission is granted.
-  const handleClick = async () => {
-    if (permission === 'granted') return;
-    permission = await ensurePermission();
-    if (permission !== 'granted') {
-      tiltBtn.classList.add('denied');
-      wireTouchDragFallback();
-    }
-  };
-
+function wireMobile(source) {
   const handleTouchStart = (e) => {
-    if (permission !== 'granted') return;
     e.preventDefault();
     startPress(source);
   };
+  const handleTouchEnd = () => endPress(source);
 
-  const handleTouchEnd = () => {
-    if (permission !== 'granted') return;
-    endPress(source);
-  };
-
-  tiltBtn.addEventListener('click', handleClick);
   tiltBtn.addEventListener('touchstart', handleTouchStart, { passive: false });
   tiltBtn.addEventListener('touchend', handleTouchEnd);
   tiltBtn.addEventListener('touchcancel', handleTouchEnd);
   source.onTilt(onTiltVisual);
-}
-
-let touchFallbackInstalled = false;
-function wireTouchDragFallback() {
-  if (touchFallbackInstalled) return;
-  touchFallbackInstalled = true;
-  // Fixed 30° virtual range — sv/sh now mean deg per unit-speed, not max tilt.
-  const fb = createPointerSource({ maxV: 30, maxH: 30 });
-  let active = false;
-  const fakeMouse = (type, t) =>
-    window.dispatchEvent(new MouseEvent(type, { clientX: t.clientX, clientY: t.clientY, button: 0 }));
-  document.addEventListener('touchstart', (e) => {
-    if (e.target === tiltBtn || tiltBtn.contains(e.target)) return;
-    active = true;
-    fakeMouse('mousedown', e.touches[0]);
-  });
-  document.addEventListener('touchmove', (e) => {
-    if (!active) return;
-    fakeMouse('mousemove', e.touches[0]);
-  });
-  document.addEventListener('touchend', () => {
-    if (!active) return;
-    active = false;
-    fakeMouse('mouseup', { clientX: 0, clientY: 0 });
-  });
-  fb.onPressStart(() => startPress(fb));
-  fb.onPressEnd(() => endPress(fb));
-  fb.onTilt(onTiltVisual);
 }
 
 function wireDesktop(source) {
@@ -290,10 +240,11 @@ async function init() {
   photoMap = mountPhotoMap(polaroid, rows);
   setPhoto(0, 0);
 
-  const initialPermission = await probePermission(500);
   const mode = await showIntroModal({ debug: debugEnabled });
   if (mode === 'mobile') {
-    wireMobile(createGyroSource({ alpha: 0.18 }), initialPermission);
+    // showIntroModal only resolves 'mobile' after permission was granted
+    // (iOS via requestPermission, Android implicitly).
+    wireMobile(createGyroSource({ alpha: 0.18 }));
   } else if (mode === 'desktop-debug') {
     wireDesktop(createPointerSource({ maxV: 30, maxH: 30 }));
   }
