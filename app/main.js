@@ -72,7 +72,7 @@ function positionTape(file) {
   const item = alignItems[file];
   const img = imgByFile[file];
   if (!item || !item.matrix || !img || !img.naturalWidth) {
-    tape.style.visibility = 'hidden';
+    tape.style.opacity = '0';
     return;
   }
   const [[a, b, tx], [c, d, ty]] = item.matrix;
@@ -95,12 +95,17 @@ function positionTape(file) {
 
   const TAPE_MIN_TOP_MARGIN = CANVAS * 0.04;  // ~63 px in canvas coords
   if (imgTop < TAPE_MIN_TOP_MARGIN) {
-    tape.style.visibility = 'hidden';
+    tape.style.opacity = '0';
     return;
   }
-  tape.style.visibility = 'visible';
-  tape.style.top  = (POLAROID_PAD + imgTop * s - TAPE_HALF_H) + 'px';
-  tape.style.left = (POLAROID_PAD + imgCx  * s) + 'px';
+  // Drive position via transform (not top/left) so the tape stays on its
+  // own compositor layer — see #tape CSS for why this matters on iOS.
+  // The tape is 60×25; translate by (cx - 30, cy - 12.5) so the rotation
+  // origin (50% 50%) lands at the desired (cx, cy).
+  const cx = POLAROID_PAD + imgCx  * s;
+  const cy = POLAROID_PAD + imgTop * s;
+  tape.style.transform = `translate3d(${cx - 30}px, ${cy - TAPE_HALF_H}px, 0) rotate(78deg)`;
+  tape.style.opacity = '1';
 }
 
 function setPhoto(rowIdx, colIdx) {

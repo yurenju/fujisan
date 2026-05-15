@@ -84,9 +84,8 @@ img {
 #tape {
   position: absolute;
   top: 0;
-  left: 50%;
+  left: 0;
   transform-origin: 50% 50%;
-  transform: translateX(-50%) rotate(78deg);
   width: 60px;
   height: 25px;
   background: repeating-linear-gradient(
@@ -100,7 +99,12 @@ img {
   border-radius: 1px;
   pointer-events: none;
   z-index: 5;
-  visibility: hidden;
+  opacity: 0;
+  /* Promote to its own compositor layer so iOS Safari can update
+     transform/opacity off the main thread. Without this, rapid
+     `visibility` toggling during fast photo switching defers the
+     repaint until the rAF loop quiets down. */
+  will-change: transform, opacity;
 }
 #caption {
   margin-top: 18px;
