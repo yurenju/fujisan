@@ -129,11 +129,11 @@ function tick(nowMs) {
   lastTickMs = nowMs;
 
   const raw = tiltSource.latest();
-  // Horizontal is always inverted from raw (kept from the pre-tweak
-  // baseline). `inv` toggles the vertical axis only — default inv=1 gives
-  // the natural up/down feel; inv=0 flips it.
+  // Both axes use raw directly (no inversion) for the natural physical
+  // feel. `inv` toggles the vertical axis only — default inv=1 gives the
+  // natural up/down feel; inv=0 flips it.
   const vSign = tuning.values.inv ? 1 : -1;
-  const tilt = { db: raw.db * vSign, dg: -raw.dg };
+  const tilt = { db: raw.db * vSign, dg: raw.dg };
 
   const velocity = tiltToVelocity(tilt, {
     sv: tuning.values.sv,
