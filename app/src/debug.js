@@ -1,6 +1,5 @@
-// URL-hash backed live-tunable parameters: sensitivity (s), tilt damping
-// (d), highlight intensity (h). Renders three sliders that other modules
-// read via the returned tuning object.
+// URL-hash backed live-tunable parameters. mountSliders renders one
+// slider per config entry; createTuning persists changes back to the hash.
 
 export function parseHash(hash) {
   if (!hash || hash === '#') return {};
