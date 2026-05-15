@@ -15,7 +15,7 @@ const debugPanel = document.getElementById('debug-panel');
 const progress = document.getElementById('progress');
 
 const tuning = createTuning({
-  defaults: { sv: 25, sh: 12, dz: 2, d: 0.4, h: 0.5, inv: 1, hide: 0 },
+  defaults: { sv: 20, sh: 2, dz: 2, d: 0.4, h: 0.5, inv: 1, hide: 0 },
 });
 mountToggle(debugPanel, tuning);
 mountSliders(debugPanel, tuning, [
@@ -78,8 +78,11 @@ function tick(nowMs) {
   lastTickMs = nowMs;
 
   const raw = tiltSource.latest();
-  const sign = tuning.values.inv ? -1 : 1;
-  const tilt = { db: raw.db * sign, dg: raw.dg * sign };
+  // Horizontal is always inverted from raw (kept from the pre-tweak
+  // baseline). `inv` toggles the vertical axis only — default inv=1 gives
+  // the natural up/down feel; inv=0 flips it.
+  const vSign = tuning.values.inv ? 1 : -1;
+  const tilt = { db: raw.db * vSign, dg: -raw.dg };
 
   const velocity = tiltToVelocity(tilt, {
     sv: tuning.values.sv,

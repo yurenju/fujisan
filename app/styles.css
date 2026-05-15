@@ -142,9 +142,9 @@ img {
   background: rgba(136,136,136,0.08);
 }
 #tilt-button .dot-grid {
-  width: 14px;
-  height: 14px;
-  background: radial-gradient(circle, currentColor 1.5px, transparent 2px) 0 0/6px 6px;
+  width: 15px;
+  height: 15px;
+  background: radial-gradient(circle, currentColor 1.2px, transparent 1.6px) center / 5px 5px;
 }
 @keyframes breathe {
   0%, 100% { opacity: 0.7; }
