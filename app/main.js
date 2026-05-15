@@ -118,7 +118,16 @@ function setPhoto(rowIdx, colIdx) {
     const m = file.match(/PXL_(\d{8})_(\d{6})/);
     if (m) {
       const [, d, t] = m;
-      caption.textContent = `${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6,8)}  ${t.slice(0,2)}:${t.slice(2,4)}`;
+      // Pixel filenames embed the UTC capture time. Convert to JST (UTC+9) for display.
+      const utc = Date.UTC(
+        +d.slice(0,4), +d.slice(4,6) - 1, +d.slice(6,8),
+        +t.slice(0,2), +t.slice(2,4), +t.slice(4,6),
+      );
+      const jst = new Date(utc + 9 * 3600 * 1000);
+      const pad = (n) => String(n).padStart(2, '0');
+      caption.textContent =
+        `${jst.getUTCFullYear()}/${pad(jst.getUTCMonth() + 1)}/${pad(jst.getUTCDate())}  ` +
+        `${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}`;
     } else {
       caption.textContent = file;
     }
