@@ -57,6 +57,13 @@ export function createGyroSource({ alpha = 0.18 } = {}) {
 
   return {
     onTilt(fn) { listeners.push(fn); },
+    latest() {
+      if (!calibrated) return { db: 0, dg: 0 };
+      return {
+        db: smoothedBeta - neutralBeta,
+        dg: smoothedGamma - neutralGamma,
+      };
+    },
     startCalibrated() {
       neutralBeta = smoothedBeta;
       neutralGamma = smoothedGamma;

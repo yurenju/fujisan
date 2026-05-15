@@ -1,7 +1,7 @@
 import { loadAll, showPhoto } from './src/loader.js';
 import { probePermission, ensurePermission, createGyroSource } from './src/gyro.js';
 import { createPointerSource } from './src/pointer.js';
-import { tiltToIndex } from './src/mapping.js';
+import { tiltToVelocity, advance } from './src/mapping.js';
 import { applyTiltVisual } from './src/polaroid.js';
 import { createTuning, mountSliders, mountPhotoMap, mountToggle } from './src/debug.js';
 
@@ -14,14 +14,17 @@ const tiltBtn = document.getElementById('tilt-button');
 const debugPanel = document.getElementById('debug-panel');
 const progress = document.getElementById('progress');
 
-const tuning = createTuning({ defaults: { sv: 25, sh: 15, d: 0.4, h: 0.5, inv: 1, hide: 0 } });
+const tuning = createTuning({
+  defaults: { sv: 25, sh: 12, dz: 2, d: 0.4, h: 0.5, inv: 1, hide: 0 },
+});
 mountToggle(debugPanel, tuning);
 mountSliders(debugPanel, tuning, [
-  { key: 'sv',  label: 'sensitivity ↕', min: 10, max: 40, step: 0.5, unit: '°' },
-  { key: 'sh',  label: 'sensitivity ↔', min: 10, max: 40, step: 0.5, unit: '°' },
-  { key: 'd',   label: 'tilt damping', min: 0, max: 1, step: 0.05 },
-  { key: 'h',   label: 'highlight',    min: 0, max: 1, step: 0.05 },
-  { key: 'inv', label: 'invert',       min: 0, max: 1, step: 1 },
+  { key: 'sv',  label: 'deg / (row/sec)',   min: 10, max: 40, step: 0.5, unit: '°' },
+  { key: 'sh',  label: 'deg / (photo/sec)', min: 5,  max: 30, step: 0.5, unit: '°' },
+  { key: 'dz',  label: 'deadzone',          min: 0,  max: 5,  step: 0.1, unit: '°' },
+  { key: 'd',   label: 'tilt damping',      min: 0,  max: 1,  step: 0.05 },
+  { key: 'h',   label: 'highlight',         min: 0,  max: 1,  step: 0.05 },
+  { key: 'inv', label: 'invert',            min: 0,  max: 1,  step: 1 },
 ]);
 let photoMap = null;
 
@@ -31,8 +34,11 @@ let imgByFile = {};
 let currentFile = null;
 let currentRow = 0;
 let currentCol = 0;
-let baseRow01 = 0;
-let baseCol01 = 0;
+let rowFloat = 0;
+let colFloat = 0;
+let rafHandle = null;
+let lastTickMs = 0;
+let tiltSource = null;
 
 function fitStage() {
   const w = photoFrame.clientWidth;
@@ -67,27 +73,60 @@ function isCoarsePointer() {
   return matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
+function tick(nowMs) {
+  const dt = Math.min((nowMs - lastTickMs) / 1000, 0.1); // cap dt to avoid jumps after tab blur
+  lastTickMs = nowMs;
+
+  const raw = tiltSource.latest();
+  const sign = tuning.values.inv ? -1 : 1;
+  const tilt = { db: raw.db * sign, dg: raw.dg * sign };
+
+  const velocity = tiltToVelocity(tilt, {
+    sv: tuning.values.sv,
+    sh: tuning.values.sh,
+    deadzone: tuning.values.dz,
+  });
+
+  const next = advance({ rowFloat, colFloat }, velocity, dt, rows);
+  rowFloat = next.rowFloat;
+  colFloat = next.colFloat;
+
+  if (next.row !== currentRow || next.col !== currentCol) {
+    setPhoto(next.row, next.col);
+  }
+
+  rafHandle = requestAnimationFrame(tick);
+}
+
+function startLoop() {
+  if (rafHandle != null) return;
+  lastTickMs = performance.now();
+  rafHandle = requestAnimationFrame(tick);
+}
+
+function stopLoop() {
+  if (rafHandle != null) {
+    cancelAnimationFrame(rafHandle);
+    rafHandle = null;
+  }
+}
+
 function startPress(source) {
-  baseRow01 = currentRow / (rows.length - 1);
-  const len = rows[currentRow].photos.length;
-  baseCol01 = len > 1 ? currentCol / (len - 1) : 0;
+  tiltSource = source;
   source.startCalibrated();
   tiltBtn?.classList.add('active');
+  startLoop();
 }
 
 function endPress(source) {
+  stopLoop();
   applyTiltVisual(polaroid, { db: 0, dg: 0 }, { tiltDamping: tuning.values.d, highlightIntensity: tuning.values.h });
   tiltBtn?.classList.remove('active');
   source?.endCalibrated?.();
 }
 
-function onTiltUpdate(ev) {
+function onTiltVisual(ev) {
   applyTiltVisual(polaroid, ev, { tiltDamping: tuning.values.d, highlightIntensity: tuning.values.h });
-  // Polaroid keeps physical correspondence; mapping direction can be inverted.
-  const sign = tuning.values.inv ? -1 : 1;
-  const mapEv = { db: ev.db * sign, dg: ev.dg * sign };
-  const { row, col } = tiltToIndex(mapEv, baseRow01, baseCol01, { sv: tuning.values.sv, sh: tuning.values.sh }, rows);
-  if (row !== currentRow || col !== currentCol) setPhoto(row, col);
 }
 
 function wireMobile(source, initialPermission) {
@@ -108,7 +147,7 @@ function wireMobile(source, initialPermission) {
   };
 
   const handleTouchStart = (e) => {
-    if (permission !== 'granted') return; // let native click fire to request
+    if (permission !== 'granted') return;
     e.preventDefault();
     startPress(source);
   };
@@ -122,14 +161,15 @@ function wireMobile(source, initialPermission) {
   tiltBtn.addEventListener('touchstart', handleTouchStart, { passive: false });
   tiltBtn.addEventListener('touchend', handleTouchEnd);
   tiltBtn.addEventListener('touchcancel', handleTouchEnd);
-  source.onTilt(onTiltUpdate);
+  source.onTilt(onTiltVisual);
 }
 
 let touchFallbackInstalled = false;
 function wireTouchDragFallback() {
   if (touchFallbackInstalled) return;
   touchFallbackInstalled = true;
-  const fb = createPointerSource({ maxV: tuning.values.sv, maxH: tuning.values.sh });
+  // Fixed 30° virtual range — sv/sh now mean deg per unit-speed, not max tilt.
+  const fb = createPointerSource({ maxV: 30, maxH: 30 });
   let active = false;
   const fakeMouse = (type, t) =>
     window.dispatchEvent(new MouseEvent(type, { clientX: t.clientX, clientY: t.clientY, button: 0 }));
@@ -149,13 +189,13 @@ function wireTouchDragFallback() {
   });
   fb.onPressStart(() => startPress(fb));
   fb.onPressEnd(() => endPress(fb));
-  fb.onTilt(onTiltUpdate);
+  fb.onTilt(onTiltVisual);
 }
 
 function wireDesktop(source) {
   source.onPressStart(() => startPress(source));
   source.onPressEnd(() => endPress(source));
-  source.onTilt(onTiltUpdate);
+  source.onTilt(onTiltVisual);
 }
 
 function onLoadProgress(loaded, total) {
@@ -176,7 +216,8 @@ async function init() {
   if (isCoarsePointer()) {
     wireMobile(createGyroSource({ alpha: 0.18 }), initialPermission);
   } else {
-    wireDesktop(createPointerSource({ maxV: tuning.values.sv, maxH: tuning.values.sh }));
+    // Fixed 30° virtual range — sv/sh now mean deg per unit-speed, not max tilt.
+    wireDesktop(createPointerSource({ maxV: 30, maxH: 30 }));
   }
 }
 
