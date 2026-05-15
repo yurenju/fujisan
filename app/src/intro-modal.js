@@ -69,8 +69,9 @@ export function showIntroModal({ debug = false } = {}) {
   dialog.showModal();
 
   return new Promise((resolve) => {
-    // Wiring for each device variant is added in later tasks.
-    // For now, just hold the promise open so the caller waits.
+    // Stash the resolver so the click handlers above can call it.
+    // Safe ordering: the Promise constructor body runs synchronously
+    // right after this `return`, before any click event can dispatch.
     dialog._resolveIntro = resolve;
   });
 }
