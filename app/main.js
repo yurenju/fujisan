@@ -4,6 +4,7 @@ import { createPointerSource } from './src/pointer.js';
 import { tiltToVelocity, advance } from './src/mapping.js';
 import { applyTiltVisual } from './src/polaroid.js';
 import { createTuning, mountSliders, mountPhotoMap, mountToggle } from './src/debug.js';
+import { showIntroModal } from './src/intro-modal.js';
 
 const polaroid = document.getElementById('polaroid');
 const photoFrame = document.getElementById('photo-frame');
@@ -274,6 +275,8 @@ async function init() {
   setPhoto(0, 0);
 
   const initialPermission = await probePermission(500);
+  const mode = await showIntroModal({ debug: debugEnabled });
+  console.log('[intro] mode =', mode);
   if (isCoarsePointer()) {
     wireMobile(createGyroSource({ alpha: 0.18 }), initialPermission);
   } else {
