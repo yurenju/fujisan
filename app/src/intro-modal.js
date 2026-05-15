@@ -36,6 +36,14 @@ export function showIntroModal({ debug = false } = {}) {
     if (device === 'desktop') e.preventDefault();
   });
 
+  if (device === 'android') {
+    const startBtn = document.getElementById('intro-start-btn');
+    startBtn.addEventListener('click', () => {
+      dialog.close();
+      dialog._resolveIntro('mobile');
+    });
+  }
+
   dialog.showModal();
 
   return new Promise((resolve) => {

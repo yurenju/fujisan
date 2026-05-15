@@ -276,11 +276,9 @@ async function init() {
 
   const initialPermission = await probePermission(500);
   const mode = await showIntroModal({ debug: debugEnabled });
-  console.log('[intro] mode =', mode);
-  if (isCoarsePointer()) {
+  if (mode === 'mobile') {
     wireMobile(createGyroSource({ alpha: 0.18 }), initialPermission);
-  } else {
-    // Fixed 30° virtual range — sv/sh now mean deg per unit-speed, not max tilt.
+  } else if (mode === 'desktop-debug') {
     wireDesktop(createPointerSource({ maxV: 30, maxH: 30 }));
   }
 }
