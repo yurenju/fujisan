@@ -35,7 +35,7 @@ export function advance(state, velocity, dt, rows) {
 
   // Integrate and wrap row.
   let rowFloat = wrap(state.rowFloat + velocity.vRow * dt, rowCount);
-  const newRow = Math.floor(rowFloat) % rowCount;
+  const newRow = Math.floor(rowFloat);
 
   // Cross-row column rescale to preserve normalized horizontal position.
   let colFloat = state.colFloat;

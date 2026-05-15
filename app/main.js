@@ -168,6 +168,7 @@ let touchFallbackInstalled = false;
 function wireTouchDragFallback() {
   if (touchFallbackInstalled) return;
   touchFallbackInstalled = true;
+  // Fixed 30° virtual range — sv/sh now mean deg per unit-speed, not max tilt.
   const fb = createPointerSource({ maxV: 30, maxH: 30 });
   let active = false;
   const fakeMouse = (type, t) =>
@@ -215,6 +216,7 @@ async function init() {
   if (isCoarsePointer()) {
     wireMobile(createGyroSource({ alpha: 0.18 }), initialPermission);
   } else {
+    // Fixed 30° virtual range — sv/sh now mean deg per unit-speed, not max tilt.
     wireDesktop(createPointerSource({ maxV: 30, maxH: 30 }));
   }
 }
