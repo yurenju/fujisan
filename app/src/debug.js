@@ -84,40 +84,31 @@ export function mountSliders(container, tuning, configs) {
   return wrap;
 }
 
-// Photo map: 6 rows × variable columns (each row's width is divided evenly
-// among its own photo count). Highlights the currently displayed photo so
-// the user can see exactly which (row, col) the tilt has navigated to.
-// Highlight persists after release.
+// Photo map: 6 rows × variable columns, rendered as a miniature film
+// contact sheet sitting in the polaroid's bottom-left margin. Each row is
+// a strip of negatives with sprocket holes on top and bottom; the current
+// photo is highlighted as a brightly exposed frame.
 export function mountPhotoMap(container, rows) {
   const wrap = document.createElement('div');
   wrap.className = 'photo-map';
 
-  const header = document.createElement('div');
-  header.className = 'pm-header';
-  header.textContent = 'photo map';
-  wrap.appendChild(header);
-
-  const grid = document.createElement('div');
-  grid.className = 'pm-grid';
   const cells = [];
   rows.forEach((row, rowIdx) => {
     const rowEl = document.createElement('div');
     rowEl.className = 'pm-row';
+    const inner = document.createElement('div');
+    inner.className = 'pm-strip';
     cells[rowIdx] = [];
     row.photos.forEach((_, colIdx) => {
       const cell = document.createElement('div');
       cell.className = 'pm-cell';
       cell.title = `${row.label} #${colIdx + 1}`;
-      rowEl.appendChild(cell);
+      inner.appendChild(cell);
       cells[rowIdx][colIdx] = cell;
     });
-    grid.appendChild(rowEl);
+    rowEl.appendChild(inner);
+    wrap.appendChild(rowEl);
   });
-  wrap.appendChild(grid);
-
-  const readout = document.createElement('div');
-  readout.className = 'pm-readout';
-  wrap.appendChild(readout);
 
   container.appendChild(wrap);
 
@@ -130,8 +121,6 @@ export function mountPhotoMap(container, rows) {
         cell.classList.add('active');
         active = cell;
       }
-      const r = rows[rowIdx];
-      if (r) readout.textContent = `${r.label}  ${colIdx + 1} / ${r.photos.length}`;
     },
   };
 }

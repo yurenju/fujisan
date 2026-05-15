@@ -185,48 +185,96 @@ img {
 }
 .debug-sliders input[type="range"] { width: 100%; }
 
-/* Photo map — debug visualization of current (row, col) on the photo grid */
+/* Photo map — miniature film contact sheet pinned to the polaroid's
+   bottom-left margin. Each row is a strip of negatives: dark film base
+   with sprocket-hole bands top and bottom, individual frames inside.
+   The currently displayed photo is the brightly exposed frame. The whole
+   strip stack sits inside a translucent archival sleeve. */
 .photo-map {
-  margin-top: 8px;
-  padding: 12px;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(4px);
-  border-radius: 6px;
-  font-size: 11px;
-  color: #ccc;
-  width: 180px;
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  width: 88px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
+  padding: 5px 4px 5px 9px;
+  pointer-events: none;
+  z-index: 3;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255,255,255,0.22) 0%,
+      rgba(255,255,255,0.06) 35%,
+      rgba(255,255,255,0.18) 60%,
+      rgba(255,255,255,0.05) 100%
+    ),
+    rgba(245,248,250,0.18);
+  border: 1px solid rgba(60,45,30,0.55);
+  border-radius: 1px;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.25),
+    inset 0 0 0 0.5px rgba(255,255,255,0.35),
+    inset 0 1px 2px rgba(255,255,255,0.15);
+  backdrop-filter: blur(1px);
 }
-.pm-header {
-  font-size: 10px;
-  color: #888;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.pm-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+/* Binder-hole punches down the left edge of the sleeve. */
+.photo-map::before {
+  content: "";
+  position: absolute;
+  left: 2.5px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background-image: radial-gradient(
+    circle,
+    rgba(0,0,0,0.35) 0 0.9px,
+    rgba(255,255,255,0.35) 1px 1.4px,
+    transparent 1.5px
+  );
+  background-size: 2px 12px;
+  background-repeat: repeat-y;
+  background-position: center top;
 }
 .pm-row {
+  position: relative;
+  background: #3a2417;
+  padding: 2px 2px;
+}
+/* Sprocket-hole bands across the top and bottom of each strip. */
+.pm-row::before,
+.pm-row::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 1.5px;
+  background-image: linear-gradient(
+    to right,
+    #d4b896 0 1.5px,
+    transparent 1.5px 3px
+  );
+  background-size: 3px 1.5px;
+  background-repeat: repeat-x;
+}
+.pm-row::before { top: 0.5px; }
+.pm-row::after  { bottom: 0.5px; }
+.pm-strip {
   display: flex;
   gap: 1px;
-  height: 14px;
+  height: 9px;
 }
 .pm-cell {
   flex: 1 1 auto;
-  background: rgba(255,255,255,0.08);
-  border-radius: 1px;
+  background: linear-gradient(
+    to bottom,
+    rgba(212,184,150,0.18),
+    rgba(160,120,80,0.10)
+  );
 }
 .pm-cell.active {
-  background: var(--accent-red);
-  box-shadow: 0 0 4px rgba(211,77,77,0.7);
-}
-.pm-readout {
-  font-family: "SF Mono", Consolas, monospace;
-  font-size: 10px;
-  color: #888;
-  letter-spacing: 0.05em;
+  background: #fff2d0;
+  box-shadow: 0 0 4px rgba(255,220,150,0.9), inset 0 0 0 0.5px #fffaea;
+  outline: 1px solid rgba(255,210,140,0.6);
+  outline-offset: 0;
 }

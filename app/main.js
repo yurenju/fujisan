@@ -209,7 +209,7 @@ async function init() {
   imgByFile = data.imgByFile;
   CANVAS = data.alignment.calibration_unit_px;
   fitStage();
-  photoMap = mountPhotoMap(debugPanel, rows);
+  photoMap = mountPhotoMap(polaroid, rows);
   setPhoto(0, 0);
 
   const initialPermission = await probePermission(500);
