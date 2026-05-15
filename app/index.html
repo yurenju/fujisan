@@ -7,6 +7,33 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<dialog id="intro-modal">
+  <header class="intro-header">
+    <h1>富士山</h1>
+    <p class="intro-subtitle">日落的位移</p>
+  </header>
+
+  <section class="intro-lede">
+    <p>去年秋天隱隱約約看到輪廓後，才知道從居所出門時正好看得到富士山。也因此才重新感知到地球傾斜角度對於日落位置的影響，特別是有了這座山作為標的物後，所有拍攝的照片就像是時光切片一樣，一層層的疊加在一起之後，就讓時間與季節流動運轉了起來。</p>
+  </section>
+
+  <section class="intro-device intro-device-desktop">
+    <p>這個頁面需要傾斜手機來翻動照片，請用手機掃描下方 QR code 打開。</p>
+    <div id="intro-qrcode" aria-label="QR code"></div>
+    <div class="intro-debug-exit">
+      <small>Debug mode</small>
+      <button type="button" id="intro-debug-btn">進入除錯模式</button>
+    </div>
+  </section>
+
+  <section class="intro-device intro-device-mobile">
+    <p>請用拇指捏住紅圈處，輕輕的傾斜手機，翻動不同時間的富士山。放開拇指，照片就停下。</p>
+    <p class="intro-ios-only">iPhone 需要你授權動作感應，才能偵測手機的傾斜。按下下方按鈕後，畫面上會跳出系統提示，請選擇「允許」。</p>
+    <button type="button" id="intro-start-btn">開始</button>
+    <p class="intro-permission-error" hidden>沒有動作感應的權限就無法使用。請到 Safari 設定中重新允許，或重新整理頁面。</p>
+  </section>
+</dialog>
+
   <div id="scene">
     <div id="polaroid">
       <div id="tape"></div>

@@ -4,6 +4,7 @@ import { createPointerSource } from './src/pointer.js';
 import { tiltToVelocity, advance } from './src/mapping.js';
 import { applyTiltVisual } from './src/polaroid.js';
 import { createTuning, mountSliders, mountPhotoMap, mountToggle } from './src/debug.js';
+import { showIntroModal } from './src/intro-modal.js';
 
 const polaroid = document.getElementById('polaroid');
 const photoFrame = document.getElementById('photo-frame');
@@ -69,9 +70,9 @@ window.addEventListener('resize', fitStage);
 function positionTape(file) {
   if (!tape) return;
   const item = alignItems[file];
-  const img = imgByFile[file];
+  const img = imgByFile[file]?.hi;
   if (!item || !item.matrix || !img || !img.naturalWidth) {
-    tape.style.visibility = 'hidden';
+    tape.style.opacity = '0';
     return;
   }
   const [[a, b, tx], [c, d, ty]] = item.matrix;
@@ -94,12 +95,18 @@ function positionTape(file) {
 
   const TAPE_MIN_TOP_MARGIN = CANVAS * 0.04;  // ~63 px in canvas coords
   if (imgTop < TAPE_MIN_TOP_MARGIN) {
-    tape.style.visibility = 'hidden';
+    tape.style.opacity = '0';
     return;
   }
-  tape.style.visibility = 'visible';
-  tape.style.top  = (POLAROID_PAD + imgTop * s - TAPE_HALF_H) + 'px';
-  tape.style.left = (POLAROID_PAD + imgCx  * s) + 'px';
+  // Position via 2D transform (not top/left, not translate3d). 2D translate
+  // avoids promoting the tape to its own compositor layer, which on iOS
+  // collides with the polaroid's own 3D rendering context during press.
+  // The tape is 60×25; translate by (cx - 30, cy - 12.5) so the rotation
+  // origin (50% 50%) lands at the desired (cx, cy).
+  const cx = POLAROID_PAD + imgCx  * s;
+  const cy = POLAROID_PAD + imgTop * s;
+  tape.style.transform = `translate(${cx - 30}px, ${cy - TAPE_HALF_H}px) rotate(78deg)`;
+  tape.style.opacity = '1';
 }
 
 function setPhoto(rowIdx, colIdx) {
@@ -257,9 +264,19 @@ function onLoadProgress(loaded, total) {
   if (loaded === total) progress.classList.add('done');
 }
 
+function isIos() {
+  // Same detection as intro-modal.js — DeviceOrientationEvent.requestPermission
+  // only exists on iOS 13+ Safari. The LQIP thumb layer is iOS-specific
+  // because Android/desktop don't evict decoded bitmaps the way iOS does,
+  // and the second layer can flash a dark edge during transforms there.
+  const D = window.DeviceOrientationEvent;
+  return !!(D && typeof D.requestPermission === 'function');
+}
+
 async function init() {
   const data = await loadAll({
     stage,
+    enableLqip: isIos(),
     onProgress: onLoadProgress,
     // Re-position tape once an asynchronously-loaded image finishes —
     // before load, naturalWidth is 0 and positionTape would hide the tape.
@@ -274,10 +291,10 @@ async function init() {
   setPhoto(0, 0);
 
   const initialPermission = await probePermission(500);
-  if (isCoarsePointer()) {
+  const mode = await showIntroModal({ debug: debugEnabled });
+  if (mode === 'mobile') {
     wireMobile(createGyroSource({ alpha: 0.18 }), initialPermission);
-  } else {
-    // Fixed 30° virtual range — sv/sh now mean deg per unit-speed, not max tilt.
+  } else if (mode === 'desktop-debug') {
     wireDesktop(createPointerSource({ maxV: 30, maxH: 30 }));
   }
 }

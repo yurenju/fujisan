@@ -55,6 +55,11 @@ img {
   mix-blend-mode: screen;
   opacity: var(--shine-opacity, 0.35);
   transition: opacity var(--transition);
+  /* Explicit z-index below #tape (z-index 5). Without this, iOS Safari
+     paints the shine on top of the washi tape once the polaroid gets
+     a 3D transform during press, and `mix-blend-mode: screen` washes
+     the white tape into invisibility. */
+  z-index: 1;
 }
 #photo-frame {
   width: min(80vh, calc(100vw - 64px));
@@ -84,9 +89,8 @@ img {
 #tape {
   position: absolute;
   top: 0;
-  left: 50%;
+  left: 0;
   transform-origin: 50% 50%;
-  transform: translateX(-50%) rotate(78deg);
   width: 60px;
   height: 25px;
   background: repeating-linear-gradient(
@@ -100,7 +104,7 @@ img {
   border-radius: 1px;
   pointer-events: none;
   z-index: 5;
-  visibility: hidden;
+  opacity: 0;
 }
 #caption {
   margin-top: 18px;
@@ -303,4 +307,213 @@ img {
   box-shadow: 0 0 4px rgba(255,220,150,0.9), inset 0 0 0 0.5px #fffaea;
   outline: 1px solid rgba(255,210,140,0.6);
   outline-offset: 0;
+}
+
+/* ── Intro modal ── */
+#intro-modal {
+  /* reset browser dialog defaults */
+  border: none;
+  outline: none;
+  padding: 0;
+
+  /* card geometry */
+  max-width: 520px;
+  width: calc(100% - 32px);
+  border-radius: 6px;
+
+  /* warm paper tone — matches the polaroid */
+  background: #f5f1e8;
+  color: #2a2218;
+
+  /* polaroid-style shadow */
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
+}
+
+#intro-modal::backdrop {
+  background: rgba(10, 6, 4, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* ── inner layout ── */
+/* Use #intro-modal prefix on all rules to match ID specificity */
+#intro-modal .intro-header {
+  padding: 32px 32px 0;
+}
+#intro-modal .intro-lede {
+  padding: 20px 32px 0;
+}
+#intro-modal .intro-device {
+  display: none;
+  padding: 20px 32px 36px;
+}
+
+/* ── typography ── */
+#intro-modal .intro-header h1 {
+  margin: 0;
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #2a2218;
+  line-height: 1.1;
+}
+#intro-modal .intro-subtitle {
+  margin: 6px 0 0;
+  font-size: 17px;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: #6b5d4a;
+}
+#intro-modal .intro-lede p {
+  margin: 0 0 1em;
+  font-size: 15px;
+  line-height: 1.75;
+  color: #3a3328;
+}
+#intro-modal .intro-lede p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── device sections ── */
+#intro-modal .intro-device-desktop p,
+#intro-modal .intro-device-mobile p {
+  margin: 0 0 1em;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #3a3328;
+}
+#intro-modal .intro-device-desktop p:last-of-type,
+#intro-modal .intro-device-mobile p:last-of-type {
+  margin-bottom: 0;
+}
+
+/* divider before device section */
+#intro-modal .intro-device {
+  border-top: 1px solid rgba(0,0,0,0.08);
+  margin-top: 4px;
+}
+
+/* ── QR code tile ── */
+#intro-qrcode {
+  margin: 18px auto 0;
+  width: fit-content;
+  background: #fff;
+  padding: 10px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+  line-height: 0;
+}
+#intro-qrcode svg,
+#intro-qrcode img,
+#intro-qrcode canvas {
+  display: block;
+  width: 200px !important;
+  height: 200px !important;
+}
+
+/* ── start button (mobile) ── */
+#intro-start-btn {
+  display: block;
+  margin: 18px auto 0;
+  padding: 12px 28px;
+  background: #3a2418;
+  color: #f5f1e8;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  cursor: pointer;
+  transition: background 150ms ease-out, transform 80ms ease-out;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#intro-start-btn:hover {
+  background: #4e3322;
+}
+#intro-start-btn:active {
+  background: #2a1a10;
+  transform: scale(0.97);
+}
+
+/* ── debug exit (desktop-debug only) ── */
+#intro-modal .intro-debug-exit {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#intro-modal .intro-debug-exit small {
+  font-size: 12px;
+  color: #8a7d6c;
+  letter-spacing: 0.05em;
+}
+#intro-debug-btn {
+  padding: 7px 16px;
+  background: transparent;
+  color: #8a7d6c;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 5px;
+  font-size: 13px;
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  cursor: pointer;
+  transition: border-color 150ms, color 150ms;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#intro-debug-btn:hover {
+  color: #3a2418;
+  border-color: rgba(0,0,0,0.30);
+}
+
+/* ── device-section visibility logic ── */
+#intro-modal[data-device="desktop"] .intro-device-desktop,
+#intro-modal[data-device="desktop-debug"] .intro-device-desktop { display: block; }
+#intro-modal[data-device="android"] .intro-device-mobile,
+#intro-modal[data-device="ios"] .intro-device-mobile { display: block; }
+#intro-modal:not([data-device="ios"]) .intro-ios-only { display: none; }
+#intro-modal:not([data-device="desktop-debug"]) .intro-debug-exit { display: none; }
+
+/* ── permission-denied error (iOS) ── */
+#intro-modal .intro-device-mobile .intro-permission-error {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(180, 70, 50, 0.07);
+  border-left: 3px solid rgba(180, 70, 50, 0.45);
+  border-left-style: solid;
+  color: #6b2c1f;
+  font-size: 14px;
+  line-height: 1.6;
+}
+#intro-start-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── mobile viewport adjustments ── */
+@media (max-width: 480px) {
+  #intro-modal .intro-header {
+    padding: 20px 18px 0;
+  }
+  #intro-modal .intro-lede {
+    padding: 16px 18px 0;
+  }
+  #intro-modal .intro-device {
+    padding: 16px 18px 24px;
+  }
+  #intro-modal .intro-header h1 {
+    font-size: 28px;
+  }
+  #intro-modal .intro-subtitle {
+    font-size: 15px;
+  }
+  #intro-qrcode svg,
+  #intro-qrcode img,
+  #intro-qrcode canvas {
+    width: 180px !important;
+    height: 180px !important;
+  }
 }
