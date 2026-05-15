@@ -58,6 +58,14 @@ export function showIntroModal({ debug = false } = {}) {
     });
   }
 
+  if (device === 'desktop-debug') {
+    const debugBtn = document.getElementById('intro-debug-btn');
+    debugBtn.addEventListener('click', () => {
+      dialog.close();
+      dialog._resolveIntro('desktop-debug');
+    });
+  }
+
   dialog.showModal();
 
   return new Promise((resolve) => {
