@@ -36,9 +36,23 @@ export function showIntroModal({ debug = false } = {}) {
     if (device === 'desktop') e.preventDefault();
   });
 
-  if (device === 'android') {
+  if (device === 'android' || device === 'ios') {
     const startBtn = document.getElementById('intro-start-btn');
-    startBtn.addEventListener('click', () => {
+    const errorEl = dialog.querySelector('.intro-permission-error');
+    if (device === 'ios') startBtn.textContent = '允許動作感應並開始';
+
+    startBtn.addEventListener('click', async () => {
+      if (device === 'ios') {
+        // Must be the first await — ensurePermission needs to be called
+        // synchronously in the click handler for iOS Safari to accept it
+        // as a user gesture.
+        const permission = await ensurePermission();
+        if (permission !== 'granted') {
+          errorEl.hidden = false;
+          startBtn.disabled = true;
+          return;
+        }
+      }
       dialog.close();
       dialog._resolveIntro('mobile');
     });
