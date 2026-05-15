@@ -10,27 +10,37 @@ const photoFrame = document.getElementById('photo-frame');
 const stage = document.getElementById('stage');
 const stageClip = document.getElementById('stage-clip');
 const caption = document.getElementById('caption');
+const tape = document.getElementById('tape');
 const tiltBtn = document.getElementById('tilt-button');
 const debugPanel = document.getElementById('debug-panel');
 const progress = document.getElementById('progress');
 
+const POLAROID_PAD = 22;    // matches polaroid CSS padding-top / padding-left
+const TAPE_HALF_H = 12.5;   // half of #tape height (25 / 2)
+
 const tuning = createTuning({
-  defaults: { sv: 25, sh: 12, dz: 2, d: 0.4, h: 0.5, inv: 1, hide: 0 },
+  defaults: { sv: 20, sh: 2, dz: 2, d: 0.4, h: 0.5, inv: 1, hide: 0 },
 });
-mountToggle(debugPanel, tuning);
-mountSliders(debugPanel, tuning, [
-  { key: 'sv',  label: 'deg / (row/sec)',   min: 10, max: 40, step: 0.5, unit: '°' },
-  { key: 'sh',  label: 'deg / (photo/sec)', min: 5,  max: 30, step: 0.5, unit: '°' },
-  { key: 'dz',  label: 'deadzone',          min: 0,  max: 5,  step: 0.1, unit: '°' },
-  { key: 'd',   label: 'tilt damping',      min: 0,  max: 1,  step: 0.05 },
-  { key: 'h',   label: 'highlight',         min: 0,  max: 1,  step: 0.05 },
-  { key: 'inv', label: 'invert',            min: 0,  max: 1,  step: 1 },
-]);
+// Debug panel (toggle + sliders) is opt-in via `?debug=1` so the released
+// UI stays clean. URL hash still carries tunings for sharing presets.
+const debugEnabled = new URLSearchParams(location.search).get('debug') === '1';
+if (debugEnabled) {
+  mountToggle(debugPanel, tuning);
+  mountSliders(debugPanel, tuning, [
+    { key: 'sv',  label: 'deg / (row/sec)',   min: 10, max: 40, step: 0.5, unit: '°' },
+    { key: 'sh',  label: 'deg / (photo/sec)', min: 5,  max: 30, step: 0.5, unit: '°' },
+    { key: 'dz',  label: 'deadzone',          min: 0,  max: 5,  step: 0.1, unit: '°' },
+    { key: 'd',   label: 'tilt damping',      min: 0,  max: 1,  step: 0.05 },
+    { key: 'h',   label: 'highlight',         min: 0,  max: 1,  step: 0.05 },
+    { key: 'inv', label: 'invert',            min: 0,  max: 1,  step: 1 },
+  ]);
+}
 let photoMap = null;
 
 let CANVAS = 1568;
 let rows = [];
 let imgByFile = {};
+let alignItems = {};
 let currentFile = null;
 let currentRow = 0;
 let currentCol = 0;
@@ -49,8 +59,48 @@ function fitStage() {
   stage.style.width = CANVAS + 'px';
   stage.style.height = CANVAS + 'px';
   stage.style.transform = `scale(${s})`;
+  if (currentFile) positionTape(currentFile);
 }
 window.addEventListener('resize', fitStage);
+
+// Place the washi tape over the visible photo's top-center, but only when
+// the photo doesn't reach the canvas top — otherwise there's no cream
+// margin for the tape to sit on. Ported from poc/index.html.
+function positionTape(file) {
+  if (!tape) return;
+  const item = alignItems[file];
+  const img = imgByFile[file];
+  if (!item || !item.matrix || !img || !img.naturalWidth) {
+    tape.style.visibility = 'hidden';
+    return;
+  }
+  const [[a, b, tx], [c, d, ty]] = item.matrix;
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const corners = [
+    [tx,             ty],
+    [a*W + tx,       c*W + ty],
+    [b*H + tx,       d*H + ty],
+    [a*W + b*H + tx, c*W + d*H + ty],
+  ];
+  const xs = corners.map(p => p[0]);
+  const ys = corners.map(p => p[1]);
+  // Clamp to canvas bounds — when the source image extends past the canvas,
+  // the visible photo edge sits at the canvas edge, not the geometric one.
+  const imgTop   = Math.max(0,      Math.min(...ys));
+  const imgLeft  = Math.max(0,      Math.min(...xs));
+  const imgRight = Math.min(CANVAS, Math.max(...xs));
+  const imgCx    = (imgLeft + imgRight) / 2;
+  const s = stageClip.clientWidth / CANVAS;
+
+  const TAPE_MIN_TOP_MARGIN = CANVAS * 0.04;  // ~63 px in canvas coords
+  if (imgTop < TAPE_MIN_TOP_MARGIN) {
+    tape.style.visibility = 'hidden';
+    return;
+  }
+  tape.style.visibility = 'visible';
+  tape.style.top  = (POLAROID_PAD + imgTop * s - TAPE_HALF_H) + 'px';
+  tape.style.left = (POLAROID_PAD + imgCx  * s) + 'px';
+}
 
 function setPhoto(rowIdx, colIdx) {
   currentRow = rowIdx;
@@ -65,6 +115,7 @@ function setPhoto(rowIdx, colIdx) {
     } else {
       caption.textContent = file;
     }
+    positionTape(file);
   }
   photoMap?.highlight(rowIdx, colIdx);
 }
@@ -78,8 +129,11 @@ function tick(nowMs) {
   lastTickMs = nowMs;
 
   const raw = tiltSource.latest();
-  const sign = tuning.values.inv ? -1 : 1;
-  const tilt = { db: raw.db * sign, dg: raw.dg * sign };
+  // Both axes use raw directly (no inversion) for the natural physical
+  // feel. `inv` toggles the vertical axis only — default inv=1 gives the
+  // natural up/down feel; inv=0 flips it.
+  const vSign = tuning.values.inv ? 1 : -1;
+  const tilt = { db: raw.db * vSign, dg: raw.dg };
 
   const velocity = tiltToVelocity(tilt, {
     sv: tuning.values.sv,
@@ -204,12 +258,19 @@ function onLoadProgress(loaded, total) {
 }
 
 async function init() {
-  const data = await loadAll({ stage, onProgress: onLoadProgress });
+  const data = await loadAll({
+    stage,
+    onProgress: onLoadProgress,
+    // Re-position tape once an asynchronously-loaded image finishes —
+    // before load, naturalWidth is 0 and positionTape would hide the tape.
+    onPhotoLoaded: (file) => { if (file === currentFile) positionTape(file); },
+  });
   rows = data.rows;
   imgByFile = data.imgByFile;
+  alignItems = data.alignment.items;
   CANVAS = data.alignment.calibration_unit_px;
   fitStage();
-  photoMap = mountPhotoMap(debugPanel, rows);
+  photoMap = mountPhotoMap(polaroid, rows);
   setPhoto(0, 0);
 
   const initialPermission = await probePermission(500);
