@@ -26,11 +26,62 @@
 
 ## 驗證準備
 
-開始之前用 Claude Preview 工具開啟 dev server 以利後續每個 task 末段驗證。
+開始之前用 Claude Preview 工具開啟 dev server 以利後續每個 task 末段桌面驗證。
 
 - [ ] **預備: 啟動 dev server**
 
 使用 `mcp__Claude_Preview__preview_start`（如尚未啟動），確認可開啟 [app/index.html](../../../app/index.html) 並見到照片框。
+
+---
+
+## Task 0: 啟動行動裝置測試 tunnel（使用者執行）
+
+iOS Safari 的 `DeviceOrientationEvent.requestPermission()` 需要 HTTPS。用 `cloudflared` 把 local server 暴露成 HTTPS URL 給手機連。
+
+`cloudflared` 已安裝（version 2025.8.1 確認過）。
+
+**檔案:** 可選新增 `scripts/dev-tunnel.bat` 或 `scripts/dev-tunnel.sh`
+
+- [ ] **步驟 1: 啟動 local server**
+
+terminal A，從專案根目錄：
+
+```bash
+python -m http.server 8765
+```
+
+- [ ] **步驟 2: 啟動 tunnel**
+
+terminal B：
+
+```bash
+cloudflared tunnel --url http://localhost:8765
+```
+
+輸出中會看到一行像 `https://xxx-yyy-zzz.trycloudflare.com`，複製下來。
+
+- [ ] **步驟 3: 手機開啟並確認**
+
+手機瀏覽器導到 `<URL>/app/`，確認:
+- 頁面載入完成、照片顯示
+- 看得到 tilt 按鈕
+- 點 tilt 按鈕應彈出 iOS DeviceOrientation 權限對話框（iOS 17+）；點允許後，再次按住應能切換照片
+
+如果權限被拒，會 fall back 到觸控拖曳模式 — 拖曳螢幕也應能切換照片。
+
+- [ ] **步驟 4: （可選）打包成一行**
+
+新增 `scripts/dev-tunnel.bat` 或 `dev-tunnel.sh`，把兩個 process 同時啟動，方便之後重複使用。範例 `dev-tunnel.bat`：
+
+```bat
+@echo off
+start cmd /k python -m http.server 8765
+cloudflared tunnel --url http://localhost:8765
+```
+
+- [ ] **步驟 5: 在每個後續 Task 之後做行動裝置驗證**
+
+之後 Task 1 / 2 / 3 結束時，除了 Claude Preview 桌面驗證，使用者也在手機上重新整理頁面實機驗證該 task 涵蓋的行為。**每次重啟 cloudflared URL 會變**，要重貼一次。
 
 ---
 
