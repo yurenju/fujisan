@@ -11,9 +11,10 @@
 // show the scene; the rest stream in via N parallel background workers.
 
 const CONCURRENCY = 6;
-const CANVAS_PX = 1568;  // logical render size for both layers; thumbs
-                         // get scaled up via width/height attrs so the
-                         // alignment matrix applies identically.
+const HI_MAX_SIDE = 1568;  // long-side pixels in app/images/*.webp
+const LO_MAX_SIDE = 200;   // long-side pixels in app/images-thumb/*.webp
+const LO_SCALE = HI_MAX_SIDE / LO_MAX_SIDE;  // CSS scale to make a thumb
+                                              // render at the hi-res box.
 
 export async function loadAll({
   stage,
@@ -27,7 +28,7 @@ export async function loadAll({
     fetch(alignmentsUrl).then(r => r.json()),
   ]);
 
-  const K = alignmentsRaw.calibration_unit_px || CANVAS_PX;
+  const K = alignmentsRaw.calibration_unit_px || HI_MAX_SIDE;
   const items = {};
   for (const [name, r] of Object.entries(alignmentsRaw.items || {})) {
     if (!r.matrix) continue;
@@ -94,11 +95,11 @@ function createLayer(item, { thumb }) {
   img.style.top = '0';
   img.style.left = '0';
   img.style.transformOrigin = '0 0';
-  // Lock the logical box to the canvas size so the alignment matrix
-  // (computed against 1568px source) applies whether the underlying
-  // bitmap is 200px (thumb) or 1568px (hi).
-  img.width = CANVAS_PX;
-  img.height = CANVAS_PX;
+  // Don't lock width/height — the source WebPs are aspect-preserved
+  // (long side 1568 for hi, 200 for thumb). The alignment matrix was
+  // computed against the hi-res natural size, so we apply it as-is to
+  // hi and scale it up by LO_SCALE for thumb (its natural size is
+  // 1/LO_SCALE × hi's natural size, uniform on both axes).
   if (thumb) {
     // Thumbs stay in the render tree always (visibility, not display).
     // iOS Safari evicts bitmaps of detached display:none images; keeping
@@ -112,7 +113,8 @@ function createLayer(item, { thumb }) {
   }
   if (item && item.matrix) {
     const [[a, b, tx], [c, d, ty]] = item.matrix;
-    img.style.transform = `matrix(${a}, ${c}, ${b}, ${d}, ${tx}, ${ty})`;
+    const s = thumb ? LO_SCALE : 1;
+    img.style.transform = `matrix(${a*s}, ${c*s}, ${b*s}, ${d*s}, ${tx}, ${ty})`;
   }
   return img;
 }
