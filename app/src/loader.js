@@ -1,11 +1,14 @@
 // Fetches photos.json + alignments.json, denormalizes alignment matrices,
-// and creates two <img> elements per photo: a 200×200 LQIP placeholder
-// that stays mounted (visibility:hidden when not current) and a full-size
-// hi-res img that's display:none and only painted while current.
+// and creates a hi-res <img> per photo (display:none when not current).
 //
-// The placeholder layer keeps a decoded fallback alive for every photo
-// (~20MB total) — when the user jumps to a row whose hi-res bitmap iOS
-// Safari has evicted, the thumb appears immediately instead of a flash.
+// On iOS Safari only, also creates a 200×200 LQIP placeholder per photo
+// that stays mounted (visibility:hidden ↔ visible). iOS evicts decoded
+// bitmaps of detached display:none images, so the thumb layer keeps a
+// decoded fallback alive everywhere (~20MB total) — when the user jumps
+// to a row whose hi-res bitmap has been evicted, the thumb appears
+// immediately instead of a flash. On Android / desktop iOS doesn't
+// evict, so the thumb layer is a net loss (sometimes a dark edge
+// fringe between thumb and hi-res transforms), and we skip it.
 //
 // The first photo's hi-res is fetched synchronously so the caller can
 // show the scene; the rest stream in via N parallel background workers.
@@ -20,6 +23,7 @@ export async function loadAll({
   stage,
   photosUrl = 'data/photos.json',
   alignmentsUrl = 'data/alignments.json',
+  enableLqip = false,
   onProgress,
   onPhotoLoaded,
 } = {}) {
@@ -43,15 +47,19 @@ export async function loadAll({
 
   const imgByFile = {};
   for (const file of ordered) {
-    const lo = createLayer(items[file], { thumb: true });
     const hi = createLayer(items[file], { thumb: false });
-    stage.appendChild(lo);
     stage.appendChild(hi);
-    imgByFile[file] = { lo, hi };
+    const entry = { hi };
+    if (enableLqip) {
+      const lo = createLayer(items[file], { thumb: true });
+      stage.appendChild(lo);
+      entry.lo = lo;
+    }
+    imgByFile[file] = entry;
   }
 
   // Synchronously load the first photo's hi-res so the caller can show
-  // the scene; its thumb loads in the background too.
+  // the scene immediately.
   let loaded = 0;
   const total = ordered.length;
   const first = ordered[0];
@@ -60,17 +68,18 @@ export async function loadAll({
   loaded++;
   onProgress?.(loaded, total);
 
-  // Background workers fetch the rest in row-major order. Each iteration
-  // loads the lo first (much smaller, ~1.7KB) and then the hi, so by the
-  // time hi is ready for a given file, its placeholder is already in
-  // memory as a fallback.
+  // Background workers fetch the rest in row-major order. When LQIP is
+  // enabled, each iteration loads the thumb first (~1.7KB) before the
+  // hi-res so the fallback is in memory before its hi-res counterpart.
   const queue = ordered.slice(1);
   const startWorker = async () => {
     while (queue.length) {
       const file = queue.shift();
       if (!file) return;
-      try { await assignSrc(imgByFile[file].lo, `images-thumb/${file}`); }
-      catch { /* swallow */ }
+      if (imgByFile[file].lo) {
+        try { await assignSrc(imgByFile[file].lo, `images-thumb/${file}`); }
+        catch { /* swallow */ }
+      }
       try { await assignSrc(imgByFile[file].hi, `images/${file}`); }
       catch { /* swallow */ }
       loaded++;
@@ -84,7 +93,9 @@ export async function loadAll({
   // Also kick off the first photo's thumb in the background — it's not
   // needed for the first paint (hi is already up) but we want it decoded
   // before the user navigates away and back.
-  assignSrc(imgByFile[first].lo, `images-thumb/${first}`);
+  if (imgByFile[first].lo) {
+    assignSrc(imgByFile[first].lo, `images-thumb/${first}`);
+  }
 
   return { rows: photos.rows, alignment, imgByFile };
 }
@@ -130,10 +141,14 @@ function assignSrc(img, url) {
 export function showPhoto(imgByFile, currentFile, nextFile) {
   if (currentFile && imgByFile[currentFile]) {
     imgByFile[currentFile].hi.style.display = 'none';
-    imgByFile[currentFile].lo.style.visibility = 'hidden';
+    if (imgByFile[currentFile].lo) {
+      imgByFile[currentFile].lo.style.visibility = 'hidden';
+    }
   }
   if (imgByFile[nextFile]) {
-    imgByFile[nextFile].lo.style.visibility = 'visible';
+    if (imgByFile[nextFile].lo) {
+      imgByFile[nextFile].lo.style.visibility = 'visible';
+    }
     imgByFile[nextFile].hi.style.display = '';
   }
   return nextFile;

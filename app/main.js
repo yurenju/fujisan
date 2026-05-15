@@ -264,9 +264,19 @@ function onLoadProgress(loaded, total) {
   if (loaded === total) progress.classList.add('done');
 }
 
+function isIos() {
+  // Same detection as intro-modal.js — DeviceOrientationEvent.requestPermission
+  // only exists on iOS 13+ Safari. The LQIP thumb layer is iOS-specific
+  // because Android/desktop don't evict decoded bitmaps the way iOS does,
+  // and the second layer can flash a dark edge during transforms there.
+  const D = window.DeviceOrientationEvent;
+  return !!(D && typeof D.requestPermission === 'function');
+}
+
 async function init() {
   const data = await loadAll({
     stage,
+    enableLqip: isIos(),
     onProgress: onLoadProgress,
     // Re-position tape once an asynchronously-loaded image finishes —
     // before load, naturalWidth is 0 and positionTape would hide the tape.
