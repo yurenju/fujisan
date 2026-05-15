@@ -55,6 +55,11 @@ img {
   mix-blend-mode: screen;
   opacity: var(--shine-opacity, 0.35);
   transition: opacity var(--transition);
+  /* Explicit z-index below #tape (z-index 5). Without this, iOS Safari
+     paints the shine on top of the washi tape once the polaroid gets
+     a 3D transform during press, and `mix-blend-mode: screen` washes
+     the white tape into invisibility. */
+  z-index: 1;
 }
 #photo-frame {
   width: min(80vh, calc(100vw - 64px));
@@ -100,11 +105,6 @@ img {
   pointer-events: none;
   z-index: 5;
   opacity: 0;
-  /* Promote to its own compositor layer so iOS Safari can update
-     transform/opacity off the main thread. Without this, rapid
-     `visibility` toggling during fast photo switching defers the
-     repaint until the rAF loop quiets down. */
-  will-change: transform, opacity;
 }
 #caption {
   margin-top: 18px;

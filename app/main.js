@@ -98,13 +98,14 @@ function positionTape(file) {
     tape.style.opacity = '0';
     return;
   }
-  // Drive position via transform (not top/left) so the tape stays on its
-  // own compositor layer — see #tape CSS for why this matters on iOS.
+  // Position via 2D transform (not top/left, not translate3d). 2D translate
+  // avoids promoting the tape to its own compositor layer, which on iOS
+  // collides with the polaroid's own 3D rendering context during press.
   // The tape is 60×25; translate by (cx - 30, cy - 12.5) so the rotation
   // origin (50% 50%) lands at the desired (cx, cy).
   const cx = POLAROID_PAD + imgCx  * s;
   const cy = POLAROID_PAD + imgTop * s;
-  tape.style.transform = `translate3d(${cx - 30}px, ${cy - TAPE_HALF_H}px, 0) rotate(78deg)`;
+  tape.style.transform = `translate(${cx - 30}px, ${cy - TAPE_HALF_H}px) rotate(78deg)`;
   tape.style.opacity = '1';
 }
 
