@@ -70,7 +70,7 @@ window.addEventListener('resize', fitStage);
 function positionTape(file) {
   if (!tape) return;
   const item = alignItems[file];
-  const img = imgByFile[file];
+  const img = imgByFile[file]?.hi;
   if (!item || !item.matrix || !img || !img.naturalWidth) {
     tape.style.opacity = '0';
     return;
