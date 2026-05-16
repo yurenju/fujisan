@@ -1,14 +1,14 @@
 # Photo data — too large for git, kept locally
-alignment/images/
-alignment/images-resized/
+pipeline/alignment/images/
+pipeline/alignment/images-resized/
 
 # Generated outputs
-alignment/aligned-test/
-alignment/aligned-all/*
-!alignment/aligned-all/overrides.json
-!alignment/aligned-all/alignments-final.json
-!alignment/aligned-all/alignments-normalized.json
-alignment/viewer.html
+pipeline/alignment/aligned-test/
+pipeline/alignment/aligned-all/*
+!pipeline/alignment/aligned-all/overrides.json
+!pipeline/alignment/aligned-all/alignments-final.json
+!pipeline/alignment/aligned-all/alignments-normalized.json
+pipeline/alignment/viewer.html
 
 # Python
 __pycache__/
@@ -23,4 +23,4 @@ __pycache__/
 .claude/settings.local.json
 
 # Regenerable previews
-poc/rest_color_order.html
+pipeline/poc/rest_color_order.html

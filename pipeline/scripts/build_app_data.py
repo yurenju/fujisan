@@ -1,4 +1,4 @@
-"""Build app/data/photos.json from poc/data.json by flattening into 6 rows.
+"""Build app/data/photos.json from pipeline/poc/data.json by flattening into 6 rows.
 
 Filenames in the output are switched from .jpg to .webp so the app loads
 the transcoded assets.
@@ -6,8 +6,8 @@ the transcoded assets.
 import json
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-src = json.loads((REPO / "poc" / "data.json").read_text(encoding="utf-8"))
+REPO = Path(__file__).resolve().parents[2]
+src = json.loads((REPO / "pipeline" / "poc" / "data.json").read_text(encoding="utf-8"))
 
 def to_webp(name: str) -> str:
     return name.rsplit(".", 1)[0] + ".webp"

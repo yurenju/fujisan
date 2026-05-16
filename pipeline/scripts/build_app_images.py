@@ -15,8 +15,8 @@ import json
 from pathlib import Path
 from PIL import Image, ImageOps
 
-REPO = Path(__file__).resolve().parents[1]
-SRC_DIR = REPO / "alignment" / "images"
+REPO = Path(__file__).resolve().parents[2]
+SRC_DIR = REPO / "pipeline" / "alignment" / "images"
 OUT_DIR = REPO / "app" / "images"
 THUMB_DIR = REPO / "app" / "images-thumb"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -52,7 +52,7 @@ print(f"Wrote {count} thumb WebPs,  total {thumb_bytes/1024/1024:.2f} MB, "
       f"avg {thumb_bytes/count/1024:.1f} KB")
 
 # Rewrite alignments.json keys from .jpg to .webp.
-src_align = json.loads((REPO / "alignment" / "aligned-all"
+src_align = json.loads((REPO / "pipeline" / "alignment" / "aligned-all"
                         / "alignments-normalized.json").read_text(encoding="utf-8"))
 new_items = {}
 for k, v in src_align.get("items", {}).items():

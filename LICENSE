@@ -1,7 +1,7 @@
 Fujisan is dual-licensed:
 
   - Source code: MIT License (see below).
-  - Photographs in `alignment/images/` and `app/images/`,
+  - Photographs in `pipeline/alignment/images/` and `app/images/`,
     `app/images-thumb/`: Creative Commons Attribution-NonCommercial 4.0
     International (CC BY-NC 4.0). See LICENSE-PHOTOS for the full text and
     https://creativecommons.org/licenses/by-nc/4.0/ for a human-readable
