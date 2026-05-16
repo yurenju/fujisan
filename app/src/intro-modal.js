@@ -8,6 +8,7 @@
 
 import qrcode from '../vendor/qrcode.js';
 import { ensurePermission } from './gyro.js';
+import { t, getLang, setLang, onLangChange, applyDom } from './i18n.js';
 
 function detectDevice(debug) {
   const coarse = matchMedia('(hover: none) and (pointer: coarse)').matches;
@@ -17,10 +18,34 @@ function detectDevice(debug) {
   return 'android';
 }
 
+function wireLangSwitcher(dialog, device) {
+  const switcher = dialog.querySelector('.intro-lang-switcher');
+  if (!switcher) return;
+  const buttons = switcher.querySelectorAll('button[data-lang]');
+  const refreshActive = () => {
+    const lang = getLang();
+    buttons.forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  };
+  buttons.forEach(b => {
+    b.addEventListener('click', () => setLang(b.dataset.lang));
+  });
+  // iOS-specific start-button override needs to re-apply after language change,
+  // since data-i18n would otherwise reset it to the generic startBtn label.
+  onLangChange(() => {
+    refreshActive();
+    if (device === 'ios') {
+      const startBtn = document.getElementById('intro-start-btn');
+      if (startBtn && !startBtn.disabled) startBtn.textContent = t('startBtnIos');
+    }
+  });
+  refreshActive();
+}
+
 export function showIntroModal({ debug = false } = {}) {
   const dialog = document.getElementById('intro-modal');
   const device = detectDevice(debug);
   dialog.dataset.device = device;
+  wireLangSwitcher(dialog, device);
 
   if (device === 'desktop' || device === 'desktop-debug') {
     const container = document.getElementById('intro-qrcode');
@@ -39,7 +64,7 @@ export function showIntroModal({ debug = false } = {}) {
   if (device === 'android' || device === 'ios') {
     const startBtn = document.getElementById('intro-start-btn');
     const errorEl = dialog.querySelector('.intro-permission-error');
-    if (device === 'ios') startBtn.textContent = '允許動作感應並開始';
+    if (device === 'ios') startBtn.textContent = t('startBtnIos');
 
     startBtn.addEventListener('click', async () => {
       if (device === 'ios') {
