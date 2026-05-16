@@ -1,5 +1,5 @@
 :root {
-  --bg: #111;
+  --bg: #0d0a08;
   --fg: #eee;
   --paper: #f5f1e8;
   --inner: #e8e1d0;
@@ -34,9 +34,17 @@ img {
 #polaroid {
   position: relative;
   background: var(--paper);
+  background-image:
+    radial-gradient(rgba(80,55,30,0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,250,240,0.4), rgba(220,200,170,0));
+  background-size: 3px 3px, 100% 100%;
   padding: 22px 22px 80px 22px;
   border-radius: 2px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,250,240,0.12),
+    0 24px 48px rgba(0,0,0,0.55),
+    0 6px 14px rgba(0,0,0,0.45),
+    0 0 0 0.5px rgba(0,0,0,0.4);
   transform-style: preserve-3d;
   transition: transform var(--transition), box-shadow var(--transition);
   max-width: calc(100vh - 32px);
@@ -233,13 +241,13 @@ img {
   background:
     linear-gradient(
       135deg,
-      rgba(255,255,255,0.22) 0%,
-      rgba(255,255,255,0.06) 35%,
-      rgba(255,255,255,0.18) 60%,
-      rgba(255,255,255,0.05) 100%
+      rgba(255,255,255,0.14) 0%,
+      rgba(255,255,255,0.04) 45%,
+      rgba(255,255,255,0.10) 80%,
+      rgba(255,255,255,0.03) 100%
     ),
-    rgba(245,248,250,0.18);
-  border: 1px solid rgba(60,45,30,0.55);
+    rgba(245,242,232,0.14);
+  border: 0.5px solid rgba(58,40,24,0.35);
   border-radius: 1px;
   box-shadow:
     0 1px 2px rgba(0,0,0,0.25),
@@ -267,7 +275,7 @@ img {
 }
 .pm-row {
   position: relative;
-  background: #3a2417;
+  background: #2c1a0e;
   padding: 2px 2px;
 }
 /* Sprocket-hole bands: tiny pale rectangles repeated across the top and
@@ -303,9 +311,11 @@ img {
   );
 }
 .pm-cell.active {
-  background: #fff2d0;
-  box-shadow: 0 0 4px rgba(255,220,150,0.9), inset 0 0 0 0.5px #fffaea;
-  outline: 1px solid rgba(255,210,140,0.6);
+  background: #f6e4b4;
+  box-shadow:
+    0 0 5px rgba(255,220,150,0.85),
+    inset 0 0 0 0.5px #fff6dc;
+  outline: none;
   outline-offset: 0;
 }
 
@@ -349,27 +359,47 @@ img {
 }
 
 /* ── typography ── */
+#intro-modal .intro-eyebrow {
+  display: block;
+  margin: 0 0 14px;
+  font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #8a7d6c;
+}
+#intro-modal .intro-rule {
+  margin: 26px 0 22px;
+  border: none;
+  height: 1px;
+  width: 28px;
+  background: rgba(42,34,24,0.18);
+}
 #intro-modal .intro-header h1 {
   margin: 0;
-  font-family: -apple-system, "Helvetica Neue", sans-serif;
-  font-size: 36px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-family: "Shippori Mincho", "Noto Serif TC", "Source Han Serif TC", serif;
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   color: #2a2218;
   line-height: 1.1;
 }
 #intro-modal .intro-subtitle {
-  margin: 6px 0 0;
-  font-size: 17px;
-  font-weight: 300;
-  letter-spacing: 0.15em;
+  margin: 14px 0 0;
+  font-family: "Shippori Mincho", "Noto Serif TC", serif;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.32em;
   color: #6b5d4a;
 }
 #intro-modal .intro-lede p {
   margin: 0 0 1em;
-  font-size: 15px;
-  line-height: 1.75;
+  font-family: "Noto Serif TC", "Shippori Mincho", "Source Han Serif TC", serif;
+  font-size: 14.5px;
+  line-height: 1.95;
+  letter-spacing: 0.05em;
   color: #3a3328;
+  text-wrap: pretty;
 }
 #intro-modal .intro-lede p:last-child {
   margin-bottom: 0;
@@ -379,8 +409,10 @@ img {
 #intro-modal .intro-device-desktop p,
 #intro-modal .intro-device-mobile p {
   margin: 0 0 1em;
-  font-size: 15px;
-  line-height: 1.7;
+  font-family: "Noto Serif TC", "Shippori Mincho", "Source Han Serif TC", serif;
+  font-size: 14.5px;
+  line-height: 1.85;
+  letter-spacing: 0.02em;
   color: #3a3328;
 }
 #intro-modal .intro-device-desktop p:last-of-type,
@@ -413,20 +445,35 @@ img {
 }
 
 /* ── start button (mobile) ── */
+#intro-modal .intro-start-wrap {
+  display: flex;
+  justify-content: center;
+}
 #intro-start-btn {
-  display: block;
-  margin: 18px auto 0;
-  padding: 12px 28px;
-  background: #3a2418;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px auto 0;
+  padding: 13px 38px;
+  background: #2a1a10;
   color: #f5f1e8;
   border: none;
-  border-radius: 6px;
-  font-size: 16px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   font-family: -apple-system, "Helvetica Neue", sans-serif;
   cursor: pointer;
   transition: background 150ms ease-out, transform 80ms ease-out;
   -webkit-user-select: none;
   user-select: none;
+}
+#intro-start-btn::after {
+  content: "→";
+  font-size: 16px;
+  text-transform: none;
+  letter-spacing: 0;
 }
 #intro-start-btn:hover {
   background: #4e3322;
@@ -508,8 +555,8 @@ img {
   color: #8a7d6c;
   border: 1px solid rgba(0,0,0,0.12);
   border-radius: 4px;
-  font-size: 12px;
-  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 13px;
+  font-family: "Shippori Mincho", "Noto Serif TC", serif;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;

@@ -7,6 +7,7 @@ const DEFAULT_LANG = 'zh';
 
 const dict = {
   zh: {
+    eyebrow: '一段攝影札記',
     title: '富士山',
     subtitle: '日落的位移',
     lede: '去年秋天隱隱約約看到輪廓後，才知道從居所出門時正好看得到富士山。也因此才重新感知到地球傾斜角度對於日落位置的影響，特別是有了這座山作為標的物後，所有拍攝的照片就像是時光切片一樣，一層層的疊加在一起之後，就讓時間與季節流動運轉了起來。',
@@ -21,6 +22,7 @@ const dict = {
     githubLink: '在 GitHub 查看原始碼',
   },
   en: {
+    eyebrow: 'A photographic journal',
     title: 'Fujisan',
     subtitle: 'The Drift of Sunset',
     lede: 'Last autumn, after vaguely making out its outline, I realized that Mount Fuji is visible just outside my home. Through this mountain, I re-perceived how the Earth\'s tilt shifts the position of sunset across the year. With Fuji as a fixed reference, every photograph became a slice of time — layered together, they let the seasons flow.',
@@ -35,6 +37,7 @@ const dict = {
     githubLink: 'View source on GitHub',
   },
   ja: {
+    eyebrow: '写真の手記',
     title: '富士山',
     subtitle: '夕日のずれ',
     lede: '昨秋、おぼろげな輪郭が見えてから、自宅を出るとちょうど富士山が見えることに気づきました。この山を目印にしたことで、地球の傾きが日没の位置に与える影響をあらためて感じ取れました。すべての写真は時間の切片のように重なり合い、時間と季節の流れを動かしていきます。',
