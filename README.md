@@ -9,6 +9,8 @@
 
 🌐 **線上展示**：<https://fujisan.yurenju.me/>
 
+<video src="https://github.com/yurenju/fujisan/raw/main/docs/demo.mp4" controls muted playsinline width="480"></video>
+
 在手機上用拇指按住畫面中央的紅圈，**輕輕傾斜手機**翻動照片，放開就停在當下那一張。傾斜的方向決定要走哪條軌跡。
 
 從東京三鷹的同一個地點，2025 年 9 月到 2026 年 5 月之間累積的 125 張富士山照片，逐張用 SIFT + RANSAC 對齊到同一個基準座標，讓富士山在畫面中不會晃動。橫軸是時間、縱軸是日期。傾斜手機在這個矩形內移動，照片就會跟著切換。中間四條軌道是日落時分，時間上有連續的照片，而上下的兩條軌道是沒有整天連續的照片。
