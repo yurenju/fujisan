@@ -5,7 +5,7 @@
       "name": "Fujisan viewer (Edge)",
       "type": "msedge",
       "request": "launch",
-      "url": "http://localhost:8765/alignment/viewer.html",
+      "url": "http://localhost:8765/pipeline/alignment/viewer.html",
       "webRoot": "${workspaceFolder}",
       "preLaunchTask": "serve fujisan"
     },
@@ -13,7 +13,7 @@
       "name": "Fujisan viewer (Chrome)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:8765/alignment/viewer.html",
+      "url": "http://localhost:8765/pipeline/alignment/viewer.html",
       "webRoot": "${workspaceFolder}",
       "preLaunchTask": "serve fujisan"
     }
