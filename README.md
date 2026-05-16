@@ -2,6 +2,13 @@
 
 從同一個窗戶拍的 125 張富士山照片，讓它們在畫面中對齊起來，作為視覺展示的素材。
 
+GitHub: <https://github.com/yurenju/fujisan>
+
+## 授權
+
+- **程式碼**：MIT License — 詳見 [LICENSE](LICENSE)
+- **照片**：CC BY-NC 4.0（姓名標示-非商業性使用）— 詳見 [LICENSE-PHOTOS](LICENSE-PHOTOS)
+
 ## 目前狀態
 
 **第一階段：資料清理 — 完成。**

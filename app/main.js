@@ -5,6 +5,9 @@ import { tiltToVelocity, advance } from './src/mapping.js';
 import { applyTiltVisual } from './src/polaroid.js';
 import { createTuning, mountSliders, mountPhotoMap, mountToggle } from './src/debug.js';
 import { showIntroModal } from './src/intro-modal.js';
+import { initI18n } from './src/i18n.js';
+
+initI18n();
 
 const polaroid = document.getElementById('polaroid');
 const photoFrame = document.getElementById('photo-frame');
