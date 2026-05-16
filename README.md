@@ -7,7 +7,7 @@
 
 ## 展示
 
-🌐 **線上展示**：<https://yurenju.github.io/fujisan/>
+🌐 **線上展示**：<https://fujisan.yurenju.me/>
 
 在手機上用拇指按住畫面中央的紅圈，**輕輕傾斜手機**翻動照片，放開就停在當下那一張。傾斜的方向決定要走哪條軌跡。
 
@@ -22,4 +22,4 @@
 ## 連結
 
 - GitHub: <https://github.com/yurenju/fujisan>
-- Demo: <https://yurenju.github.io/fujisan/>
+- Demo: <https://fujisan.yurenju.me/>
